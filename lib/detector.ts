@@ -87,13 +87,13 @@ async function callGeminiModel(
 ): Promise<DetectionResult[]> {
   const { mime, data } = parseDataUri(imageDataUri);
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  // ندمج موجّه النظام داخل نصّ المستخدم لتفادي أي اختلاف في أسماء الحقول
   const body = {
-    systemInstruction: { parts: [{ text: buildSystemPrompt() }] },
     contents: [
       {
         role: 'user',
         parts: [
-          { text: 'قيّم هذه الصورة وأعد JSON فقط.' },
+          { text: `${buildSystemPrompt()}\n\nقيّم هذه الصورة وأعد JSON فقط.` },
           { inline_data: { mime_type: mime, data } },
         ],
       },
@@ -115,7 +115,8 @@ async function callGeminiModel(
     clearTimeout(timeout);
   }
   if (!res.ok) {
-    throw new Error(`Gemini ${model} HTTP ${res.status}`);
+    const bodyText = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status} ${bodyText.slice(0, 300)}`);
   }
   const json = await res.json();
   const text: string =
@@ -241,20 +242,22 @@ export async function detect(
   }
 
   // محاولة Gemini مع نموذج احتياطي
+  const errors: string[] = [];
   for (const model of GEMINI_MODELS) {
     try {
       const results = await callGeminiModel(model, imageBase64, key!);
       return { results, provider: 'gemini' };
-    } catch (e) {
-      // جرّب النموذج التالي
+    } catch (e: any) {
+      errors.push(`${model}: ${String(e?.message || e)}`);
       continue;
     }
   }
 
-  // فشل كل النماذج → محاكاة مع إشعار
+  // فشل كل النماذج → محاكاة مع إشعار (يتضمّن سبب الفشل مؤقتًا للتشخيص)
   return {
     results: runMock(imageBase64, ctx),
     provider: 'mock',
     notice: 'تعذّر الوصول إلى محرّك Gemini — تم التحويل مؤقتًا إلى المحاكاة.',
-  };
+    debugError: errors.join(' | '),
+  } as DetectResponse & { debugError?: string };
 }
