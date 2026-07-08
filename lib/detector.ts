@@ -225,7 +225,7 @@ export async function detect(
   imageBase64: string,
   ctx: DetectContext,
 ): Promise<DetectResponse> {
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GEMINI_API_KEY?.trim();
   const useMock = ctx.forceMock || !key || key.length < 8;
 
   if (useMock) {
