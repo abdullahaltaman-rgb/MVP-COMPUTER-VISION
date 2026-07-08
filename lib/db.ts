@@ -7,9 +7,11 @@ import path from 'node:path';
 // sqlite paths relative to prisma/schema.prisma) and the runtime driver
 // adapter (which resolves relative to process.cwd()) point at the SAME file.
 export function resolveUrl(): { url: string; authToken?: string } {
-  const tursoUrl = process.env.TURSO_DATABASE_URL;
+  // نُنظّف القيم من الفراغات/الأسطر الجديدة الناتجة عن اللصق (سبب شائع لـ Invalid URL)
+  const tursoUrl = process.env.TURSO_DATABASE_URL?.trim();
+  const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
   if (tursoUrl && tursoUrl.length > 0) {
-    return { url: tursoUrl, authToken: process.env.TURSO_AUTH_TOKEN };
+    return { url: tursoUrl, authToken: authToken || undefined };
   }
   // Local dev: keep the db file next to the Prisma schema (prisma/dev.db).
   const abs = path.join(process.cwd(), 'prisma', 'dev.db');
@@ -32,6 +34,19 @@ function makeClient(): PrismaClient {
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-export const prisma = globalForPrisma.prisma ?? makeClient();
+function getPrisma(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = makeClient();
+  }
+  return globalForPrisma.prisma;
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// عميل كسول: لا يُنشأ اتصال القاعدة إلا عند أول استخدام فعلي (وقت التشغيل)،
+// وليس عند استيراد الوحدة أو أثناء البناء (next build) — يتفادى Invalid URL وقت البناء.
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const client = getPrisma();
+    const value = Reflect.get(client as object, prop, receiver);
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+});
