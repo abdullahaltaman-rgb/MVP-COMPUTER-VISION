@@ -6,11 +6,22 @@ import path from 'node:path';
 // Resolve the libSQL connection so that BOTH the Prisma CLI (which resolves
 // sqlite paths relative to prisma/schema.prisma) and the runtime driver
 // adapter (which resolves relative to process.cwd()) point at the SAME file.
+// تنظيف قوي لقيم البيئة الملصقة: يزيل الفراغات والأسطر الجديدة وحروف
+// حدود جداول Markdown (` و |) وعلامات الاقتباس — أسباب شائعة لـ "Invalid URL".
+function sanitize(v: string | undefined): string {
+  if (!v) return '';
+  return v
+    .trim()
+    .replace(/[`|]/g, '') // باكتيك وشَرطة عمودية من نسخ جداول Markdown
+    .replace(/^["'<>]+|["'<>]+$/g, '') // اقتباسات/أقواس محيطة
+    .replace(/\s+/g, '') // أي فراغ داخلي
+    .trim();
+}
+
 export function resolveUrl(): { url: string; authToken?: string } {
-  // نُنظّف القيم من الفراغات/الأسطر الجديدة الناتجة عن اللصق (سبب شائع لـ Invalid URL)
-  const tursoUrl = process.env.TURSO_DATABASE_URL?.trim();
-  const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
-  if (tursoUrl && tursoUrl.length > 0) {
+  const tursoUrl = sanitize(process.env.TURSO_DATABASE_URL);
+  const authToken = sanitize(process.env.TURSO_AUTH_TOKEN);
+  if (tursoUrl.length > 0) {
     return { url: tursoUrl, authToken: authToken || undefined };
   }
   // Local dev: keep the db file next to the Prisma schema (prisma/dev.db).
