@@ -226,7 +226,8 @@ export async function detect(
   imageBase64: string,
   ctx: DetectContext,
 ): Promise<DetectResponse> {
-  const key = process.env.GEMINI_API_KEY?.trim();
+  // تنظيف قوي: يزيل الفراغات والاقتباسات وحروف حدود Markdown من المفتاح الملصق
+  const key = process.env.GEMINI_API_KEY?.replace(/[\s"'`|<>]/g, '');
   const useMock = ctx.forceMock || !key || key.length < 8;
 
   if (useMock) {
