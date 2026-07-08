@@ -1,4 +1,5 @@
 import { prisma } from './db';
+import { ensureBootstrapped } from './bootstrap';
 
 export interface OverviewStats {
   branches: number;
@@ -14,6 +15,7 @@ export interface OverviewStats {
 }
 
 export async function getOverview(): Promise<OverviewStats> {
+  await ensureBootstrapped();
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 

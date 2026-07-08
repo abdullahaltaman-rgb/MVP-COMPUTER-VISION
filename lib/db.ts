@@ -6,7 +6,7 @@ import path from 'node:path';
 // Resolve the libSQL connection so that BOTH the Prisma CLI (which resolves
 // sqlite paths relative to prisma/schema.prisma) and the runtime driver
 // adapter (which resolves relative to process.cwd()) point at the SAME file.
-function resolveUrl(): { url: string; authToken?: string } {
+export function resolveUrl(): { url: string; authToken?: string } {
   const tursoUrl = process.env.TURSO_DATABASE_URL;
   if (tursoUrl && tursoUrl.length > 0) {
     return { url: tursoUrl, authToken: process.env.TURSO_AUTH_TOKEN };
@@ -15,6 +15,13 @@ function resolveUrl(): { url: string; authToken?: string } {
   const abs = path.join(process.cwd(), 'prisma', 'dev.db');
   return { url: `file:${abs}` };
 }
+
+/** عميل libSQL خام (لتنفيذ SQL مباشرة عند التهيئة الذاتية) */
+export function rawLibsql() {
+  return createClient(resolveUrl());
+}
+
+export const usingTurso = !!(process.env.TURSO_DATABASE_URL && process.env.TURSO_DATABASE_URL.length > 0);
 
 function makeClient(): PrismaClient {
   const { url, authToken } = resolveUrl();

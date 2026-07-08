@@ -2,6 +2,7 @@ import { prisma } from './db';
 import { getOverview } from './stats';
 import { chainRoot, verifyChain } from './chain';
 import { ITEM_MAP } from './catalog';
+import { ensureBootstrapped } from './bootstrap';
 
 export interface MinistryCaseRow {
   id: string;
@@ -77,6 +78,7 @@ export async function getMinistryData() {
 }
 
 export async function getCaseDetail(id: string) {
+  await ensureBootstrapped();
   const c = await prisma.case.findUnique({
     where: { id },
     include: { branch: true, item: true, evidences: { orderBy: { chainIndex: 'asc' } }, events: { orderBy: { at: 'asc' } } },
