@@ -85,6 +85,12 @@ export function confidencePct(c: number): string {
   return `${Math.round(c * 100)}%`;
 }
 
+/** اختصار البصمة للعرض (آمن للعميل — بلا crypto): أول 8 · آخر 8 */
+export function shortHash(hash: string): string {
+  if (!hash || hash.length < 16) return hash || '—';
+  return `${hash.slice(0, 8)}…${hash.slice(-8)}`;
+}
+
 export const STATUS_AR: Record<string, string> = {
   new: 'جديدة',
   notified: 'تم الإبلاغ',
