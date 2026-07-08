@@ -1,0 +1,101 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Branch {
+  id          String   @id @default(cuid())
+  nameAr      String
+  districtAr  String
+  licenseNo   String
+  score       Int      @default(90)
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  cases       Case[]
+}
+
+model Item {
+  code        String   @id
+  titleAr     String
+  fineText    String
+  fineAmount  Int
+  mode        String   // "live" | "scheduled"
+  category    String   @default("violation") // "violation" | "positive"
+  cases       Case[]
+}
+
+model Case {
+  id            String     @id @default(cuid())
+  refNo         String     @unique
+  branch        Branch     @relation(fields: [branchId], references: [id])
+  branchId      String
+  item          Item       @relation(fields: [itemCode], references: [code])
+  itemCode      String
+  status        String     @default("new") // new | notified | in_grace | corrected | escalated
+  confidence    Float
+  route         String     @default("auto") // "auto" | "review"
+  noteAr        String?
+  bbox          String?    // JSON [x,y,w,h] normalized للبند الأساسي
+  potentialFine Int        @default(0)
+  detectedAt    DateTime   @default(now())
+  graceDeadline DateTime
+  correctedAt   DateTime?
+  isDemoData    Boolean    @default(false) // visitor-generated (subject to 6h wipe)
+  evidences     Evidence[]
+  events        CaseEvent[]
+  createdAt     DateTime   @default(now())
+}
+
+model Evidence {
+  id          String   @id @default(cuid())
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId      String
+  kind        String   @default("detection") // "detection" | "correction"
+  imageB64    String
+  annotatedB64 String?
+  sha256      String
+  prevHash    String
+  chainIndex  Int      @unique
+  cameraName  String   @default("كاميرا العرض الحي")
+  signedAt    DateTime @default(now())
+}
+
+model CaseEvent {
+  id        String   @id @default(cuid())
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId    String
+  kind      String   // detected | notified | grace_started | corrected | escalated | verified | tampered | restored
+  labelAr   String
+  at        DateTime @default(now())
+}
+
+model ReviewItem {
+  id          String   @id @default(cuid())
+  refNo       String   @unique
+  branchName  String
+  itemCode    String
+  confidence  Float
+  noteAr      String?
+  imageB64    String
+  bbox        String   // JSON [x,y,w,h]
+  status      String   @default("pending") // pending | approved | rejected
+  isDemoData  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model ChainMeta {
+  id        Int      @id @default(1)
+  lastHash  String   @default("")
+  lastIndex Int      @default(-1)
+}
+
+model AppState {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now())
+}

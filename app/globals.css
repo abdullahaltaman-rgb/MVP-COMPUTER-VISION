@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #16294a;
+  --green: #1b7a43;
+  --gold: #b8934a;
+  --amber: #e0982c;
+  --red: #ce4a3c;
+  --mist: #f0f3f7;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--mist);
+  color: var(--navy);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-naskh), 'Segoe UI', system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, .font-kufi {
+  font-family: var(--font-kufi), var(--font-naskh), sans-serif;
+}
+
+/* أرقام غربية دائمًا حتى داخل نص عربي */
+.tnum {
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* شريط تمرير رفيع للوحات */
+.thin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: rgba(22,41,74,0.2); border-radius: 3px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* ── هوية CCTV للبث الحي ── */
+.cctv-frame {
+  background: #0b1220;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 0 60px rgba(0,0,0,0.6), 0 8px 40px rgba(0,0,0,0.35);
+}
+.cctv-scanline {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255,255,255,0.03) 0px,
+    rgba(255,255,255,0.03) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+.rec-dot {
+  width: 10px; height: 10px; border-radius: 9999px; background: #ce4a3c;
+  box-shadow: 0 0 0 0 rgba(206,74,60,0.7);
+  animation: recpulse 1.4s infinite;
+}
+@keyframes recpulse {
+  0% { box-shadow: 0 0 0 0 rgba(206,74,60,0.6); }
+  70% { box-shadow: 0 0 0 8px rgba(206,74,60,0); }
+  100% { box-shadow: 0 0 0 0 rgba(206,74,60,0); }
+}
+
+/* بطاقة مؤسسية */
+.card {
+  background: #fff;
+  border: 1px solid rgba(22,41,74,0.08);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(22,41,74,0.06);
+}
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 9999px; font-size: 12px;
+  border: 1px solid transparent; white-space: nowrap;
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 20px; border-radius: 12px; font-weight: 700;
+  transition: transform .08s ease, filter .15s ease, background .15s ease;
+  cursor: pointer; border: 1px solid transparent; user-select: none;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--green); color: #fff; }
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-navy { background: var(--navy); color: #fff; }
+.btn-gold { background: var(--gold); color: #fff; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-ghost { background: transparent; border-color: rgba(22,41,74,0.2); color: var(--navy); }
+.btn-lg { padding: 16px 30px; font-size: 18px; border-radius: 14px; }
+
+/* توست */
+.toast-wrap { position: fixed; bottom: 20px; inset-inline-start: 20px; z-index: 60; display: flex; flex-direction: column; gap: 10px; }
+
+/* عدّاد تنازلي */
+.countdown { font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+
+/* طباعة تقرير A4 */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .print-a4 { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 16mm; box-shadow: none; }
+  @page { size: A4; margin: 0; }
+}
