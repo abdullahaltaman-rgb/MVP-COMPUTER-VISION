@@ -4,6 +4,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
   experimental: {
+    instrumentationHook: true,
     serverComponentsExternalPackages: ['@prisma/client', '@libsql/client', '@prisma/adapter-libsql'],
   },
 };

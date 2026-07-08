@@ -99,3 +99,9 @@ model AppState {
   value     String
   updatedAt DateTime @default(now())
 }
+
+model RateLimit {
+  ip          String   @id
+  windowStart DateTime @default(now())
+  count       Int      @default(0)
+}
