@@ -3,6 +3,7 @@ import { detect, type DetectContext } from '@/lib/detector';
 import { applyGating, getThreshold } from '@/lib/cases';
 import { consumeRate, RATE_LIMIT } from '@/lib/ratelimit';
 import { clientIp } from '@/lib/ip';
+import { SEED_SCENES, loadSceneDataUri } from '@/lib/seed-images';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,12 +11,18 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const imageB64: string = body.imageB64 || body.image || '';
+    let imageB64: string = body.imageB64 || body.image || '';
     const annotatedB64: string | null = body.annotatedB64 || null;
     const source: DetectContext['source'] = body.source || 'webcam';
     const seedFile: string | undefined = body.seedFile;
     const cameraName: string | undefined = body.cameraName;
     const explicitMock = body.mock === true || body.mock === 1;
+
+    // مشاهد seed: يحمّل الخادم الصورة بنفسه (لا يعتمد على المتصفح)
+    if (source === 'seed' && seedFile) {
+      const scene = SEED_SCENES.find((s) => s.file === seedFile);
+      if (scene) imageB64 = loadSceneDataUri(scene);
+    }
 
     if (!imageB64 || imageB64.length < 32) {
       return NextResponse.json({ error: 'صورة غير صالحة' }, { status: 400 });
