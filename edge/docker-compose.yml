@@ -1,0 +1,62 @@
+# ── أبيض فيجن — حزمة الحافة (صندوق N100 داخل الفرع) ──
+# Frigate 0.17 (OpenVINO على iGPU) + mosquitto MQTT + خدمة الجسر
+# التشغيل: cp .env.example .env ثم docker compose up -d
+services:
+  frigate:
+    image: ghcr.io/blakeblackshear/frigate:0.17.0
+    container_name: abyad-frigate
+    restart: unless-stopped
+    shm_size: '256mb'
+    devices:
+      # تسريع OpenVINO على iGPU لمعالج N100
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    volumes:
+      - ./frigate/config.yml:/config/config.yml:ro
+      - frigate-media:/media/frigate
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      # تُحقن في config.yml عبر استبدال Frigate لمتغيرات FRIGATE_*
+      FRIGATE_RTSP_USER: ${RTSP_USER}
+      FRIGATE_RTSP_PASSWORD: ${RTSP_PASSWORD}
+      FRIGATE_CAM_PROCESSING_IP: ${CAM_PROCESSING_IP}
+      FRIGATE_CAM_RECEPTION_IP: ${CAM_RECEPTION_IP}
+      FRIGATE_CAM_WASTE_IP: ${CAM_WASTE_IP}
+    ports:
+      - '127.0.0.1:5000:5000' # واجهة/API داخلية فقط — لا تُعرَّض خارج الصندوق
+      - '127.0.0.1:8554:8554' # restream داخلي
+    depends_on:
+      - mqtt
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: abyad-mqtt
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt-data:/mosquitto/data
+    ports:
+      - '127.0.0.1:1883:1883'
+
+  bridge:
+    build: ./bridge
+    container_name: abyad-bridge
+    restart: unless-stopped
+    volumes:
+      - ./bridge/config.yaml:/app/config.yaml:ro
+      - bridge-data:/data # طابور SQLite offline-first
+    environment:
+      CLOUD_BASE_URL: ${CLOUD_BASE_URL}
+      CLOUD_DEVICE_TOKEN: ${CLOUD_DEVICE_TOKEN}
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      FRIGATE_BASE_URL: http://frigate:5000
+      OUTBOX_DB: /data/outbox.db
+      BRIDGE_VERSION: '1.0.0'
+    depends_on:
+      - frigate
+      - mqtt
+
+volumes:
+  frigate-media:
+  mqtt-data:
+  bridge-data:

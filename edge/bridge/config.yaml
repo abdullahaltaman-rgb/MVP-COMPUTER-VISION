@@ -1,0 +1,60 @@
+# ── إعداد جسر أبيض فيجن (القيم المحلية الافتراضية) ──
+# كل قيم البنود قابلة للتحديث عن بُعد: السحابة (/api/edge/config) تتجاوز ما هنا
+# عند كل دورة heartbeat — لا حاجة لإعادة نشر عند تغيير عتبة أو نافذة.
+
+heartbeat_sec: 60
+outbox_flush_sec: 10
+snapshot_interval_minutes: 120 # دورية لقطات الفحص الدلالي (تتجاوزها السحابة)
+
+# خرائط الكاميرات → المناطق (مطابقة لإعداد Frigate)
+cameras:
+  cam_processing:
+    zones: [processing_area]
+  cam_reception:
+    zones: [reception_pos, entrance]
+  cam_waste:
+    zones: [waste_point]
+
+# ── البنود الخمسة (PRD §5) ──
+# mode=live: يحركها محرك القواعد من أحداث Frigate MQTT
+# mode=scheduled: تُفحص سحابيًا (Gemini) من اللقطات الدورية — الجسر يرفع اللقطات فقط
+rules:
+  - item_code: '3/8/1/1' # عامل دون زي/كمامة/قفازات/غطاء شعر
+    mode: live
+    objects: [person]
+    zones: [processing_area, reception_pos]
+    confirm_window_sec: 45
+    cooldown_sec: 1800
+    auto_threshold: 0.85
+    review_threshold: 0.60
+    verify: semantic # السحابة تتحقق من السمات عبر Gemini قبل البوابة
+
+  - item_code: '1/4/1/1' # ملابس على الأرضية دون السلال
+    mode: live
+    objects: [person]
+    zones: [processing_area]
+    confirm_window_sec: 60
+    cooldown_sec: 1800
+    auto_threshold: 0.85
+    review_threshold: 0.60
+    verify: semantic
+
+  - item_code: '7/8/1/1' # أكل وشرب في مواقع العمل
+    mode: live
+    objects: [cup, bottle, bowl, sandwich, banana, apple, orange, donut, cake]
+    zones: [processing_area, reception_pos]
+    confirm_window_sec: 30
+    cooldown_sec: 900
+    auto_threshold: 0.85
+    review_threshold: 0.60
+    verify: semantic
+
+  - item_code: '1/5/1/1' # تكدس النفايات
+    mode: scheduled
+    zones: [waste_point]
+    schedule_minutes: 120
+
+  - item_code: '6/5/1/1' # حاويات نفايات غير مغطاة
+    mode: scheduled
+    zones: [waste_point]
+    schedule_minutes: 120

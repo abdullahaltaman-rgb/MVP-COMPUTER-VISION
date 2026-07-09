@@ -1,0 +1,114 @@
+# ── إعداد Frigate 0.17 — أبيض فيجن (3 كاميرات، كاشف OpenVINO) ──
+# حراس الخصوصية: لا صوت إطلاقًا (-an في كل المسارات)، لا تعرف على وجوه،
+# التسجيل المحلي 7 أيام فقط (الأدلة الرسمية تُدار سحابيًا بسياسة 90 يومًا).
+# بيانات RTSP تُحقن من .env عبر متغيرات FRIGATE_* — لا أسرار في هذا الملف.
+
+mqtt:
+  host: mqtt
+  port: 1883
+  topic_prefix: frigate
+  client_id: frigate
+
+detectors:
+  ov:
+    type: openvino
+    device: AUTO # iGPU لمعالج N100
+
+# نموذج الكشف الافتراضي المدمج (SSDLite MobileNet) يكفي لأصناف COCO المطلوبة
+model:
+  width: 300
+  height: 300
+
+# لا كشف صوتي — خصوصية (PRD §خصوصية: بلا صوت في أي مكان)
+audio:
+  enabled: false
+
+record:
+  enabled: true
+  retain:
+    days: 7
+    mode: motion
+
+snapshots:
+  enabled: true
+  retain:
+    default: 7
+
+objects:
+  # الأصناف المتعقبة وفق بنود §5 (شخص + أدوات أكل/شرب)
+  track:
+    - person
+    - cup
+    - bottle
+    - bowl
+    - sandwich
+    - banana
+    - apple
+    - orange
+    - donut
+    - cake
+  filters:
+    person:
+      min_score: 0.55
+      threshold: 0.65
+
+# ── الكاميرات الثلاث والمناطق الأربع ──
+# إحداثيات المناطق أدناه قوالب مبدئية تُضبط ميدانيًا من واجهة Frigate
+# (Settings → Mask/Zone editor) بعد تركيب الكاميرات، ثم تُنسخ هنا.
+cameras:
+  cam_processing:
+    ffmpeg:
+      inputs:
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_PROCESSING_IP}:554/stream1
+          input_args: preset-rtsp-restream
+          roles: [detect, record]
+      output_args:
+        # -an = إسقاط الصوت نهائيًا من التسجيل (حارس خصوصية)
+        record: preset-record-generic -an
+    detect:
+      width: 1280
+      height: 720
+      fps: 5
+    zones:
+      processing_area:
+        coordinates: 0.05,0.15,0.95,0.15,0.95,0.95,0.05,0.95
+        objects: [person, cup, bottle, bowl, sandwich, banana, apple, orange, donut, cake]
+
+  cam_reception:
+    ffmpeg:
+      inputs:
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_RECEPTION_IP}:554/stream1
+          input_args: preset-rtsp-restream
+          roles: [detect, record]
+      output_args:
+        record: preset-record-generic -an
+    detect:
+      width: 1280
+      height: 720
+      fps: 5
+    zones:
+      reception_pos:
+        coordinates: 0.25,0.2,0.95,0.2,0.95,0.9,0.25,0.9
+        objects: [person, cup, bottle, bowl, sandwich, banana, apple, orange, donut, cake]
+      entrance:
+        coordinates: 0.0,0.3,0.22,0.3,0.22,1.0,0.0,1.0
+        objects: [person]
+
+  cam_waste:
+    ffmpeg:
+      inputs:
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_WASTE_IP}:554/stream1
+          input_args: preset-rtsp-restream
+          roles: [detect, record]
+      output_args:
+        record: preset-record-generic -an
+    detect:
+      width: 1280
+      height: 720
+      fps: 5
+    zones:
+      waste_point:
+        coordinates: 0.1,0.25,0.9,0.25,0.9,0.95,0.1,0.95
+        objects: [person]
+
+version: '0.17-0'
