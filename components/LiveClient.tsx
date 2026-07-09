@@ -77,10 +77,8 @@ export default function LiveClient({ scenes }: { scenes: SceneLite[] }) {
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
-      }
+      // ملاحظة: عنصر الفيديو لا يُركّب إلا بعد mode='camera'، لذا نُرفق البثّ
+      // في useEffect بعد التركيب (يتفادى صرف srcObject على ref فارغ).
       setMode('camera');
     } catch (e: any) {
       setCamError(
@@ -99,6 +97,26 @@ export default function LiveClient({ scenes }: { scenes: SceneLite[] }) {
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  // إرفاق بثّ الكاميرا بعد تركيب عنصر الفيديو (mode='camera')
+  useEffect(() => {
+    if (mode !== 'camera') return;
+    const v = videoRef.current;
+    const stream = streamRef.current;
+    if (!v || !stream) return;
+    v.srcObject = stream;
+    v.muted = true; // ضبط الكتم على مستوى الخاصية (خلل React مع muted) لتفعيل التشغيل التلقائي على iOS
+    v.setAttribute('muted', '');
+    v.setAttribute('playsinline', 'true');
+    const tryPlay = () => v.play().catch(() => {});
+    tryPlay();
+    v.addEventListener('loadedmetadata', tryPlay);
+    v.addEventListener('canplay', tryPlay);
+    return () => {
+      v.removeEventListener('loadedmetadata', tryPlay);
+      v.removeEventListener('canplay', tryPlay);
+    };
+  }, [mode]);
 
   // ── رسم الصناديق (خرائط contain) ──
   const draw = useCallback(() => {
@@ -294,7 +312,14 @@ export default function LiveClient({ scenes }: { scenes: SceneLite[] }) {
 
         {mode === 'camera' && (
           <>
-            <video ref={videoRef} playsInline muted autoPlay className="absolute inset-0 w-full h-full object-contain" />
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              autoPlay
+              onClick={() => videoRef.current?.play().catch(() => {})}
+              className="absolute inset-0 w-full h-full object-contain"
+            />
             <canvas ref={overlayRef} className="absolute inset-0 w-full h-full z-20" />
             {scanning && (
               <div className="absolute top-1/2 inset-x-0 h-0.5 bg-green/70 shadow-[0_0_12px_2px_rgba(27,122,67,0.7)] z-20 animate-pulse" />
