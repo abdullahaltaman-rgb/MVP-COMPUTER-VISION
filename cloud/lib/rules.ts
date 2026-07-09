@@ -1,4 +1,4 @@
-// ── الإعدادات الافتراضية للبنود الخمسة (PRD §5) — تُنشأ عند البذر وتُدار من /ops ──
+// ── الإعدادات الافتراضية لبنود §5 (5 أصلية + 10/4/1/1 المعتمد) — تُدار من /ops ──
 // الحافة تسحب هذه القيم عبر GET /api/edge/config (قابلة للتحديث عن بُعد).
 import prisma from './db';
 import { ITEMS } from './catalog';
@@ -13,6 +13,8 @@ export interface RuleDefaults {
   zones: string[];
   objects: string[];
   scheduleMinutes: number | null;
+  /** فحوصات مجدولة إيجابية متتالية مطلوبة قبل فتح حدث */
+  consecutiveChecks: number;
   semanticPromptAr: string | null;
 }
 
@@ -28,6 +30,7 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     zones: ['processing_area', 'reception_pos'],
     objects: ['person'],
     scheduleMinutes: null,
+    consecutiveChecks: 1,
     semanticPromptAr:
       'هل يظهر في الصورة عامل مغسلة يعمل دون الزي الموحد الكامل (مريول/زي موحد + كمامة + قفازات + غطاء شعر)؟ قيّم فقط العاملين داخل منطقة العمل، وتجاهل الزبائن.',
   },
@@ -42,6 +45,7 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     zones: ['processing_area'],
     objects: ['person'],
     scheduleMinutes: null,
+    consecutiveChecks: 1,
     semanticPromptAr:
       'هل توجد ملابس أو أقمشة موضوعة على الأرضية مباشرة دون سلال أو حاويات مخصصة في منطقة المعالجة؟',
   },
@@ -56,6 +60,7 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     zones: ['processing_area', 'reception_pos'],
     objects: ['cup', 'bottle', 'bowl', 'sandwich', 'banana', 'apple', 'orange', 'donut', 'cake'],
     scheduleMinutes: null,
+    consecutiveChecks: 1,
     semanticPromptAr:
       'هل يظهر في الصورة شخص يتناول طعامًا أو شرابًا (أو طعام/مشروب مفتوح بجواره) داخل منطقة العمل في المغسلة؟',
   },
@@ -70,6 +75,7 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     zones: ['waste_point'],
     objects: [],
     scheduleMinutes: 120,
+    consecutiveChecks: 1,
     semanticPromptAr:
       'انظر إلى نقطة النفايات في الصورة: هل توجد نفايات متكدسة أو أكياس متراكمة خارج الحاويات لم يتم التخلص منها أولًا بأول؟',
   },
@@ -84,8 +90,28 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     zones: ['waste_point'],
     objects: [],
     scheduleMinutes: 120,
+    consecutiveChecks: 1,
     semanticPromptAr:
       'انظر إلى حاويات النفايات في الصورة: هل توجد حاوية نفايات مكشوفة دون غطاء محكم؟',
+  },
+  {
+    // بند سادس معتمد (تعديل المالك 2026-07-09): طاولة كي غير مغطاة —
+    // عتبة 0.80، والتأكيد بفحصين مجدولين متتاليين (consecutiveChecks: 2)
+    itemCode: '10/4/1/1',
+    mode: 'scheduled',
+    autoThreshold: 0.8,
+    reviewThreshold: 0.6,
+    confirmWindowSec: 0,
+    cooldownSec: 7200,
+    zones: ['processing_area'],
+    objects: [],
+    scheduleMinutes: 120,
+    consecutiveChecks: 2,
+    semanticPromptAr:
+      'افحص طاولة/طاولات الكي في الصورة وفق هذه القائمة: 1) هل توجد طاولة كي ظاهرة؟ ' +
+      '2) هل سطحها مغطى بقماش/غطاء مخصص؟ 3) هل الغطاء نظيف وسليم دون بقع أو تمزق واضح؟ ' +
+      'اعتبرها مخالفة (violation=true) فقط إذا كانت طاولة كي ظاهرة وسطحها مكشوف دون قماش، ' +
+      'أو غطاؤها متسخ بشكل واضح. إن لم تظهر أي طاولة كي في الصورة فأجب violation=false بثقة منخفضة.',
   },
 ];
 
@@ -105,6 +131,7 @@ export async function ensureRuleConfigs(): Promise<void> {
         zones: r.zones,
         objects: r.objects,
         scheduleMinutes: r.scheduleMinutes,
+        consecutiveChecks: r.consecutiveChecks,
         semanticPromptAr: r.semanticPromptAr,
       },
     });

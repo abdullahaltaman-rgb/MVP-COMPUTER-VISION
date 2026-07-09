@@ -15,6 +15,7 @@ const Body = z.object({
   confirmWindowSec: z.number().int().min(0).max(3600).optional(),
   cooldownSec: z.number().int().min(0).max(86400).optional(),
   scheduleMinutes: z.number().int().min(15).max(1440).nullable().optional(),
+  consecutiveChecks: z.number().int().min(1).max(5).optional(),
 });
 
 export async function POST(req: Request) {

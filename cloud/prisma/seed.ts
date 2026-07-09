@@ -20,6 +20,8 @@ const RULES = [
   { itemCode: '7/8/1/1', mode: 'live', confirmWindowSec: 30, cooldownSec: 900, zones: ['processing_area', 'reception_pos'], objects: ['cup', 'bottle', 'bowl', 'sandwich', 'banana', 'apple', 'orange', 'donut', 'cake'], scheduleMinutes: null, semanticPromptAr: 'هل يظهر في الصورة شخص يتناول طعامًا أو شرابًا (أو طعام/مشروب مفتوح بجواره) داخل منطقة العمل في المغسلة؟' },
   { itemCode: '1/5/1/1', mode: 'scheduled', confirmWindowSec: 0, cooldownSec: 7200, zones: ['waste_point'], objects: [], scheduleMinutes: 120, semanticPromptAr: 'انظر إلى نقطة النفايات في الصورة: هل توجد نفايات متكدسة أو أكياس متراكمة خارج الحاويات لم يتم التخلص منها أولًا بأول؟' },
   { itemCode: '6/5/1/1', mode: 'scheduled', confirmWindowSec: 0, cooldownSec: 7200, zones: ['waste_point'], objects: [], scheduleMinutes: 120, semanticPromptAr: 'انظر إلى حاويات النفايات في الصورة: هل توجد حاوية نفايات مكشوفة دون غطاء محكم؟' },
+  // بند سادس معتمد: طاولة كي غير مغطاة — عتبة 0.80 وفحصان متتاليان
+  { itemCode: '10/4/1/1', mode: 'scheduled', confirmWindowSec: 0, cooldownSec: 7200, zones: ['processing_area'], objects: [], scheduleMinutes: 120, autoThreshold: 0.8, consecutiveChecks: 2, semanticPromptAr: 'افحص طاولة/طاولات الكي في الصورة وفق هذه القائمة: 1) هل توجد طاولة كي ظاهرة؟ 2) هل سطحها مغطى بقماش/غطاء مخصص؟ 3) هل الغطاء نظيف وسليم دون بقع أو تمزق واضح؟ اعتبرها مخالفة (violation=true) فقط إذا كانت طاولة كي ظاهرة وسطحها مكشوف دون قماش، أو غطاؤها متسخ بشكل واضح. إن لم تظهر أي طاولة كي في الصورة فأجب violation=false بثقة منخفضة.' },
 ];
 
 async function main() {
@@ -69,7 +71,7 @@ async function main() {
   }
   console.log('✔ الكاميرات الثلاث');
 
-  // ── قواعد البنود الخمسة ──
+  // ── قواعد بنود §5 ──
   for (const r of RULES) {
     await prisma.ruleConfig.upsert({
       where: { itemCode: r.itemCode },
@@ -77,18 +79,19 @@ async function main() {
       create: {
         itemCode: r.itemCode,
         mode: r.mode,
-        autoThreshold: 0.85,
+        autoThreshold: (r as { autoThreshold?: number }).autoThreshold ?? 0.85,
         reviewThreshold: 0.6,
         confirmWindowSec: r.confirmWindowSec,
         cooldownSec: r.cooldownSec,
         zones: r.zones,
         objects: r.objects,
         scheduleMinutes: r.scheduleMinutes,
+        consecutiveChecks: (r as { consecutiveChecks?: number }).consecutiveChecks ?? 1,
         semanticPromptAr: r.semanticPromptAr,
       },
     });
   }
-  console.log('✔ قواعد البنود الخمسة (§5)');
+  console.log(`✔ قواعد بنود §5 (${RULES.length} بنود، منها 10/4/1/1 بفحصين متتاليين)`);
 
   // ── المستخدمون (رمز وصول لكل دور) ──
   const users = [

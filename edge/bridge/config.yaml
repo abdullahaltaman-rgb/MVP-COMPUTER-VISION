@@ -15,7 +15,7 @@ cameras:
   cam_waste:
     zones: [waste_point]
 
-# ── البنود الخمسة (PRD §5) ──
+# ── بنود §5 (5 أصلية + 10/4/1/1 المعتمد) ──
 # mode=live: يحركها محرك القواعد من أحداث Frigate MQTT
 # mode=scheduled: تُفحص سحابيًا (Gemini) من اللقطات الدورية — الجسر يرفع اللقطات فقط
 rules:
@@ -57,4 +57,9 @@ rules:
   - item_code: '6/5/1/1' # حاويات نفايات غير مغطاة
     mode: scheduled
     zones: [waste_point]
+    schedule_minutes: 120
+
+  - item_code: '10/4/1/1' # طاولة كي غير مغطاة بقماش نظيف (بند سادس معتمد)
+    mode: scheduled # فحص Gemini سحابي بقائمة تدقيق؛ عتبة 0.80 وفحصان متتاليان (تُدار سحابيًا)
+    zones: [processing_area]
     schedule_minutes: 120

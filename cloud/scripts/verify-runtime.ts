@@ -5,6 +5,8 @@ import { gate } from '../lib/rules';
 import { openCaseFromEvent, closeCaseCorrected, escalateCase } from '../lib/cases';
 import { createDailyDigest, createWeeklyReport } from '../lib/report';
 import { calibrationSummary, computeDailyMetrics } from '../lib/metrics';
+import { ensureRuleConfigs } from '../lib/rules';
+import { processVerdict } from '../lib/semantic';
 
 const prisma = new PrismaClient();
 let failures = 0;
@@ -133,6 +135,41 @@ async function main() {
   check('PDF وُلّد (base64 محلي بلا S3)', typeof payload.pdfB64 === 'string' && (payload.pdfB64 as string).length > 5000);
   const wkNotif = await prisma.notification.findFirst({ where: { type: 'weekly_report', audience: 'kafeel' } });
   check('إشعار التقرير للكفيل', Boolean(wkNotif));
+
+  // 11) البند السادس 10/4/1/1: فحصان مجدولان متتاليان → حدث وحالة (E2E)
+  await ensureRuleConfigs();
+  const rule6 = await prisma.ruleConfig.findUniqueOrThrow({ where: { itemCode: '10/4/1/1' } });
+  check('قاعدة 10/4/1/1 مبذورة (عتبة 0.80، فحصان)',
+    rule6.autoThreshold === 0.8 && rule6.consecutiveChecks === 2 && rule6.mode === 'scheduled');
+
+  const mkSnap = () =>
+    prisma.snapshot.create({
+      data: {
+        branchId: branch.id,
+        deviceId: device.id,
+        cameraKey: 'cam_processing',
+        imageB64: FAKE_JPEG,
+        takenAt: new Date(),
+      },
+    });
+  const positive = { violation: true, confidence: 0.86, noteAr: 'طاولة كي مكشوفة دون قماش' };
+  const eventCount6 = () => prisma.event.count({ where: { itemCode: '10/4/1/1' } });
+
+  // إيجابي أول → لا حدث (بانتظار التتابع)
+  await processVerdict(`${(await mkSnap()).id}|10/4/1/1`, positive);
+  check('فحص إيجابي أول لا يفتح حدثًا', (await eventCount6()) === 0);
+  // سلبي يقطع التتابع
+  await processVerdict(`${(await mkSnap()).id}|10/4/1/1`, { violation: false, confidence: 0.9, noteAr: 'مغطاة' });
+  await processVerdict(`${(await mkSnap()).id}|10/4/1/1`, positive);
+  check('السلبي يصفّر التتابع (إيجابي جديد وحده لا يكفي)', (await eventCount6()) === 0);
+  // إيجابي ثانٍ متتالٍ → حدث + حالة (0.86 ≥ 0.80 → آلي، والوضع الصامت مطفأ هنا)
+  await processVerdict(`${(await mkSnap()).id}|10/4/1/1`, positive);
+  check('الفحص المتتالي الثاني يفتح حدثًا واحدًا', (await eventCount6()) === 1);
+  const ev6 = await prisma.event.findFirstOrThrow({ where: { itemCode: '10/4/1/1' } });
+  check('حدث 10/4/1/1 آلي من مصدر مجدول', ev6.decision === 'auto' && ev6.source === 'semantic');
+  const case6 = await prisma.case.findFirst({ where: { itemCode: '10/4/1/1' } });
+  check('فُتحت حالة 10/4/1/1 كاملة (in_grace، غرامة 500)',
+    Boolean(case6 && case6.status === 'in_grace' && case6.potentialFine === 500), case6?.refNo ?? '');
 
   // أعد الوضع الصامت لحالته الافتراضية
   await prisma.branch.update({ where: { id: branch.id }, data: { silentMode: true } });

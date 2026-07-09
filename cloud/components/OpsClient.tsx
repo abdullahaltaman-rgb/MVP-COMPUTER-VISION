@@ -30,7 +30,7 @@ interface OpsData {
   rules: {
     itemCode: string; enabled: boolean; mode: string; autoThreshold: number;
     reviewThreshold: number; confirmWindowSec: number; cooldownSec: number;
-    scheduleMinutes: number | null; zones: string[];
+    scheduleMinutes: number | null; consecutiveChecks: number; zones: string[];
   }[];
   audit: { id: string; actorName: string; action: string; entity: string; entityId: string | null; at: string }[];
   calibration: {
@@ -377,7 +377,7 @@ export default function OpsClient({ nameAr }: { nameAr: string }) {
           )}
 
           <div className="card p-4">
-            <h3 className="font-kufi font-bold text-navy mb-3">عتبات وجداول البنود الخمسة (تُدفع للحافة فورًا)</h3>
+            <h3 className="font-kufi font-bold text-navy mb-3">عتبات وجداول بنود §5 (تُدفع للحافة فورًا)</h3>
             <div className="space-y-3">
               {data.rules.map((r) => (
                 <RuleEditor key={r.itemCode} rule={r} busy={busy !== null} onSave={(fields) =>
@@ -427,7 +427,7 @@ function RuleEditor({
   rule: {
     itemCode: string; enabled: boolean; mode: string; autoThreshold: number;
     reviewThreshold: number; confirmWindowSec: number; cooldownSec: number;
-    scheduleMinutes: number | null;
+    scheduleMinutes: number | null; consecutiveChecks: number;
   };
   busy: boolean;
   onSave: (fields: Record<string, unknown>) => void;
@@ -437,13 +437,15 @@ function RuleEditor({
   const [confirm, setConfirm] = useState(rule.confirmWindowSec);
   const [cooldown, setCooldown] = useState(rule.cooldownSec);
   const [schedule, setSchedule] = useState(rule.scheduleMinutes ?? 120);
+  const [consecutive, setConsecutive] = useState(rule.consecutiveChecks ?? 1);
 
   const dirty =
     auto !== rule.autoThreshold ||
     review !== rule.reviewThreshold ||
     confirm !== rule.confirmWindowSec ||
     cooldown !== rule.cooldownSec ||
-    (rule.mode === 'scheduled' && schedule !== rule.scheduleMinutes);
+    (rule.mode === 'scheduled' &&
+      (schedule !== rule.scheduleMinutes || consecutive !== rule.consecutiveChecks));
 
   return (
     <div className="rounded-lg border border-navy/10 p-3">
@@ -467,7 +469,11 @@ function RuleEditor({
         ) : (
           <NumField label="الجدولة (دقيقة)" value={schedule} step={15} min={15} max={1440} onChange={setSchedule} />
         )}
-        <NumField label="التهدئة (ث)" value={cooldown} step={60} min={0} max={86400} onChange={setCooldown} />
+        {rule.mode === 'scheduled' ? (
+          <NumField label="فحوصات متتالية للتأكيد" value={consecutive} step={1} min={1} max={5} onChange={setConsecutive} />
+        ) : (
+          <NumField label="التهدئة (ث)" value={cooldown} step={60} min={0} max={86400} onChange={setCooldown} />
+        )}
       </div>
       {dirty && (
         <button
@@ -478,7 +484,9 @@ function RuleEditor({
               reviewThreshold: review,
               confirmWindowSec: confirm,
               cooldownSec: cooldown,
-              ...(rule.mode === 'scheduled' ? { scheduleMinutes: schedule } : {}),
+              ...(rule.mode === 'scheduled'
+                ? { scheduleMinutes: schedule, consecutiveChecks: consecutive }
+                : {}),
             })
           }
           className="btn btn-navy text-xs py-1.5 px-4 mt-2"

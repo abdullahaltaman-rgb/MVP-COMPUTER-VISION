@@ -65,7 +65,7 @@ model Camera {
   @@unique([deviceId, key])
 }
 
-// ── إعدادات البنود الخمسة (قابلة للتحديث عن بُعد — الحافة تسحبها من /api/edge/config) ──
+// ── إعدادات بنود §5 (قابلة للتحديث عن بُعد — الحافة تسحبها من /api/edge/config) ──
 model RuleConfig {
   itemCode         String   @id
   enabled          Boolean  @default(true)
@@ -81,6 +81,8 @@ model RuleConfig {
   objects          String[] // أصناف Frigate المطلوبة (للبنود الحية)
   // للبنود المجدولة: دورية الفحص الدلالي بالدقائق
   scheduleMinutes  Int?
+  // عدد الفحوصات المجدولة الإيجابية المتتالية المطلوبة قبل فتح حدث (تأكيد التتابع)
+  consecutiveChecks Int     @default(1)
   semanticPromptAr String?
   updatedAt        DateTime @updatedAt
 }

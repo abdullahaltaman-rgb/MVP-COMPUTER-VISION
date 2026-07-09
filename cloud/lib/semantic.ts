@@ -85,12 +85,46 @@ export async function collectDueChecks(): Promise<PendingCheck[]> {
   return checks;
 }
 
-/** يعالج حكم Gemini للقطة/بند: بوابة الثقة → حدث (وربما حالة آلية) */
+// ── تأكيد التتابع للبنود المجدولة (consecutiveChecks > 1) ──
+// نحتفظ بعدّاد فحوصات إيجابية متتالية لكل (بند، كاميرا) في AppState؛
+// الحكم السلبي يصفّره، وينقضي إن تجاوز الفاصل ثلاثة أضعاف دورة الجدولة.
+
+interface Streak {
+  count: number;
+  lastAt: number;
+}
+
+function streakKey(itemCode: string, cameraKey: string): string {
+  return `sem_streak_${itemCode.replace(/\//g, '-')}_${cameraKey}`;
+}
+
+async function readStreak(key: string): Promise<Streak> {
+  const row = await prisma.appState.findUnique({ where: { key } });
+  if (!row) return { count: 0, lastAt: 0 };
+  try {
+    const j = JSON.parse(row.value) as Streak;
+    return { count: j.count || 0, lastAt: j.lastAt || 0 };
+  } catch {
+    return { count: 0, lastAt: 0 };
+  }
+}
+
+async function writeStreak(key: string, streak: Streak): Promise<void> {
+  const value = JSON.stringify(streak);
+  await prisma.appState.upsert({
+    where: { key },
+    update: { value },
+    create: { key, value },
+  });
+}
+
+/** يعالج حكم Gemini للقطة/بند: تأكيد التتابع → بوابة الثقة → حدث (وربما حالة آلية) */
 export async function processVerdict(
   key: string,
   verdict: SemanticVerdict | null,
 ): Promise<void> {
-  if (!verdict || !verdict.violation) return;
+  // حكم مفقود (فشل Gemini) — لا نغيّر شيئًا ولا نصفّر التتابع
+  if (!verdict) return;
   const [snapshotId, itemCode] = key.split('|');
   if (!snapshotId || !itemCode) return;
 
@@ -100,8 +134,28 @@ export async function processVerdict(
   ]);
   if (!snap || !rule) return;
 
+  const sKey = streakKey(itemCode, snap.cameraKey);
   const gated = gate(verdict.confidence, rule);
-  if (gated === 'drop') return;
+  const positive = verdict.violation && gated !== 'drop';
+
+  if (!positive) {
+    // نفي (أو ثقة دون عتبة المراجعة) يقطع سلسلة التأكيد
+    await writeStreak(sKey, { count: 0, lastAt: Date.now() });
+    return;
+  }
+
+  const required = Math.max(1, rule.consecutiveChecks);
+  if (required > 1) {
+    const prev = await readStreak(sKey);
+    const windowMs = 3 * (rule.scheduleMinutes ?? 120) * 60 * 1000;
+    // انقضاء: فجوة أطول من ثلاث دورات جدولة تبدأ سلسلة جديدة
+    const count = prev.lastAt && Date.now() - prev.lastAt <= windowMs ? prev.count + 1 : 1;
+    if (count < required) {
+      await writeStreak(sKey, { count, lastAt: Date.now() });
+      return; // بانتظار الفحص المتتالي التالي
+    }
+    await writeStreak(sKey, { count: 0, lastAt: Date.now() }); // اكتمل التأكيد — تصفير
+  }
 
   const dedupeKey = `sem_${snapshotId}_${itemCode.replace(/\//g, '-')}`;
   const exists = await prisma.event.findUnique({ where: { dedupeKey } });

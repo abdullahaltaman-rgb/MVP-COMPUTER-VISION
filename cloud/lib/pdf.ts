@@ -133,7 +133,7 @@ export async function generateWeeklyPdf(input: WeeklyPdfInput): Promise<Buffer> 
 
   // جدول البنود
   y += 84;
-  doc.font('kufi').fontSize(12).fill(navy).text(rtl('تفصيل البنود الخمسة (§5)'), 48, y, {
+  doc.font('kufi').fontSize(12).fill(navy).text(rtl('تفصيل بنود اللائحة (§5)'), 48, y, {
     width: W,
     align: 'right',
   });
