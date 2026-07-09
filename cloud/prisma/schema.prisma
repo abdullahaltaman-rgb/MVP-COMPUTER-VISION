@@ -1,0 +1,306 @@
+// ── أبيض فيجن v1.0 إنتاج — مخطط السحابة (Postgres) ──
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── الفرع ──
+model Branch {
+  id         String   @id @default(cuid())
+  code       String   @unique // مثال: RUH-001
+  nameAr     String
+  districtAr String
+  city       String   @default("الرياض")
+  licenseNo  String
+  timezone   String   @default("Asia/Riyadh")
+  // بوابة الأسبوع الثاني: عند التفعيل تذهب كل الرصدات لطابور المراجعة فقط — صفر إشعارات للعميل
+  silentMode Boolean  @default(true)
+  score      Int      @default(90)
+  createdAt  DateTime @default(now())
+
+  devices   Device[]
+  cases     Case[]
+  events    Event[]
+  users     User[]
+  snapshots Snapshot[]
+  reports   Report[]
+}
+
+// ── جهاز الحافة (صندوق N100 داخل الفرع) ──
+model Device {
+  id         String    @id @default(cuid())
+  branch     Branch    @relation(fields: [branchId], references: [id])
+  branchId   String
+  name       String
+  // sha256(token) — الرمز الخام يُسلَّم مرة واحدة عند التسجيل
+  tokenHash  String    @unique
+  version    String?
+  ipAddr     String?
+  lastSeenAt DateTime?
+  // آخر حمولة heartbeat كاملة (حالة الصندوق + الكاميرات)
+  lastStats  Json?
+  // لمنع تكرار إشعار الانقطاع لكل انقطاع واحد
+  offlineNotifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  cameras Camera[]
+}
+
+model Camera {
+  id         String    @id @default(cuid())
+  device     Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  deviceId   String
+  key        String // cam_processing | cam_reception | cam_waste
+  nameAr     String
+  zones      String[] // processing_area | reception_pos | waste_point | entrance
+  lastSeenAt DateTime?
+  fps        Float?
+  online     Boolean   @default(false)
+
+  @@unique([deviceId, key])
+}
+
+// ── إعدادات البنود الخمسة (قابلة للتحديث عن بُعد — الحافة تسحبها من /api/edge/config) ──
+model RuleConfig {
+  itemCode         String   @id
+  enabled          Boolean  @default(true)
+  mode             String // live | scheduled
+  // بوابة الثقة: auto ≥ autoThreshold / مراجعة [reviewThreshold, autoThreshold) / إهمال أدنى
+  autoThreshold    Float    @default(0.85)
+  reviewThreshold  Float    @default(0.60)
+  // نافذة التأكيد: يجب استمرار الرصد طوالها قبل إطلاق حدث
+  confirmWindowSec Int      @default(30)
+  // فترة تهدئة تمنع تكرار الحدث لنفس البند/الكاميرا
+  cooldownSec      Int      @default(900)
+  zones            String[]
+  objects          String[] // أصناف Frigate المطلوبة (للبنود الحية)
+  // للبنود المجدولة: دورية الفحص الدلالي بالدقائق
+  scheduleMinutes  Int?
+  semanticPromptAr String?
+  updatedAt        DateTime @updatedAt
+}
+
+// ── الحدث الخام (كل رصدة من الحافة أو من الفحص الدلالي) ──
+model Event {
+  id          String    @id @default(cuid())
+  // معرّف الحافة لمنع الازدواج عند إعادة الإرسال من طابور offline
+  dedupeKey   String    @unique
+  branch      Branch    @relation(fields: [branchId], references: [id])
+  branchId    String
+  deviceId    String?
+  cameraKey   String
+  itemCode    String
+  confidence  Float
+  // auto = تجاوز عتبة الإصدار الآلي | review = ضمن نطاق المراجعة
+  decision    String
+  // pending (بانتظار مراجعة) | approved | rejected | auto_published
+  status      String    @default("pending")
+  source      String    @default("live") // live | semantic | correction_check
+  zonesHit    String[]
+  frameKey    String? // مفتاح S3 لإطار الدليل
+  noteAr      String?
+  meta        Json?
+  // هل وقع الحدث أثناء الوضع الصامت؟ (يبقى في المراجعة فقط)
+  silent      Boolean   @default(false)
+  occurredAt  DateTime
+  receivedAt  DateTime  @default(now())
+  // ── المعايرة (بوابة الأسبوع الثاني) ──
+  label       String? // correct | incorrect
+  labeledBy   String?
+  labeledAt   DateTime?
+  caseId      String?
+
+  @@index([branchId, itemCode, occurredAt])
+  @@index([status, receivedAt])
+}
+
+// ── الحالة (دورة الحياة حسب §5) ──
+model Case {
+  id               String      @id @default(cuid())
+  refNo            String      @unique
+  branch           Branch      @relation(fields: [branchId], references: [id])
+  branchId         String
+  itemCode         String
+  // new → notified → in_grace(48h) → corrected | escalated
+  status           String      @default("new")
+  confidence       Float
+  route            String      @default("auto") // auto | review
+  cameraKey        String?
+  noteAr           String?
+  potentialFine    Int         @default(0)
+  detectedAt       DateTime    @default(now())
+  notifiedAt       DateTime?
+  graceDeadline    DateTime
+  correctedAt      DateTime?
+  escalatedAt      DateTime?
+  escalationReason String? // grace_expired | repeat_7d
+  createdAt        DateTime    @default(now())
+
+  evidences Evidence[]
+  timeline  CaseEvent[]
+
+  @@index([branchId, itemCode, detectedAt])
+  @@index([status, graceDeadline])
+}
+
+// ── الدليل + سلسلة العهدة (كما في الديمو: hash = sha256(bytes + prevHash)) ──
+model Evidence {
+  id          String   @id @default(cuid())
+  case        Case?    @relation(fields: [caseId], references: [id])
+  caseId      String?
+  eventId     String?
+  kind        String   @default("detection") // detection | correction | report | digest
+  // البايتات في S3؛ نُبقي base64 في القاعدة فقط عند غياب S3 (تطوير محلي)
+  s3Key       String?
+  imageB64    String?
+  // حارس خصوصية: بعد 90 يومًا تُحذف البايتات وتبقى البصمة (bytesPurged)
+  bytesPurged Boolean  @default(false)
+  sha256      String
+  prevHash    String
+  chainIndex  Int      @unique
+  cameraName  String   @default("")
+  signedAt    DateTime @default(now())
+}
+
+model ChainMeta {
+  id        Int    @id @default(1)
+  lastHash  String @default("")
+  lastIndex Int    @default(-1)
+}
+
+model CaseEvent {
+  id      String   @id @default(cuid())
+  case    Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId  String
+  kind    String // detected | notified | grace_started | corrected | escalated | review_approved | recheck_failed
+  labelAr String
+  at      DateTime @default(now())
+}
+
+// ── الإشعارات (مصفوفة PRD: مشغل فوري + إغلاق؛ كفيل أسبوعي + تصعيد فقط) ──
+model Notification {
+  id      String   @id @default(cuid())
+  audience String // operator | kafeel | ops
+  branchId String
+  caseId   String?
+  type     String // case_opened | case_closed | escalation | weekly_report | device_offline
+  titleAr  String
+  bodyAr   String
+  topic    String?
+  data     Json?
+  fcmId    String?
+  status   String   @default("sent") // sent | failed | suppressed_silent | skipped_no_fcm
+  at       DateTime @default(now())
+
+  @@index([audience, branchId, at])
+}
+
+// ── المستخدمون (دخول برمز وصول لكل دور — واجهة PWA المؤقتة) ──
+model User {
+  id             String  @id @default(cuid())
+  role           String // operator | kafeel | ops | ministry
+  nameAr         String
+  phone          String?
+  // sha256(accessCode)
+  accessCodeHash String  @unique
+  branch         Branch? @relation(fields: [branchId], references: [id])
+  branchId       String?
+  active         Boolean @default(true)
+  createdAt      DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actorName String
+  action    String
+  entity    String
+  entityId  String?
+  detail    Json?
+  at        DateTime @default(now())
+
+  @@index([at])
+}
+
+// ── مقاييس المعايرة اليومية لكل بند (بوابة ≥90% على 200+ حدث) ──
+model DailyMetric {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  branchId    String
+  itemCode    String
+  totalEvents Int      @default(0)
+  labeled     Int      @default(0)
+  truePos     Int      @default(0)
+  falsePos    Int      @default(0)
+  precision   Float?
+  fpRate      Float?
+
+  @@unique([date, branchId, itemCode])
+}
+
+// ── بصمة التشغيل اليومية الموقّعة ──
+model OpsDigest {
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  payload   Json
+  rootHash  String
+  sha256    String
+  signature String
+  algo      String   @default("Ed25519")
+  createdAt DateTime @default(now())
+}
+
+// ── التقرير الأسبوعي الموقّع للكفيل (الخميس 17:00) ──
+model Report {
+  id          String    @id @default(cuid())
+  kind        String    @default("weekly")
+  branch      Branch    @relation(fields: [branchId], references: [id])
+  branchId    String
+  periodStart DateTime
+  periodEnd   DateTime
+  payload     Json
+  sha256      String
+  signature   String
+  algo        String    @default("Ed25519")
+  s3KeyPdf    String?
+  createdAt   DateTime  @default(now())
+  notifiedAt  DateTime?
+}
+
+// ── لقطات دورية من الحافة للفحوصات الدلالية المجدولة ──
+model Snapshot {
+  id        String   @id @default(cuid())
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  branchId  String
+  deviceId  String
+  cameraKey String
+  s3Key     String?
+  imageB64  String?
+  takenAt   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([branchId, cameraKey, takenAt])
+}
+
+// ── دفعات Gemini للفحص الدلالي ──
+model SemanticBatch {
+  id          String    @id @default(cuid())
+  mode        String // batch | sync
+  batchName   String? // اسم المهمة لدى Gemini Batch API
+  status      String    @default("submitted") // submitted | done | failed
+  request     Json?
+  result      Json?
+  submittedAt DateTime  @default(now())
+  completedAt DateTime?
+}
+
+model AppState {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now())
+}

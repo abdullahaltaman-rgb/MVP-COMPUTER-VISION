@@ -1,0 +1,10 @@
+{
+  "crons": [
+    { "path": "/api/cron/health", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/lifecycle", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/semantic", "schedule": "0 */2 * * *" },
+    { "path": "/api/cron/semantic-poll", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/daily", "schedule": "30 21 * * *" },
+    { "path": "/api/cron/weekly", "schedule": "0 14 * * 4" }
+  ]
+}
