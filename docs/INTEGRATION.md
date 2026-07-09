@@ -168,10 +168,13 @@ paths:
 
   /api/chain/verify:
     get:
-      summary: التحقق الكامل من سلسلة العهدة sha256(bytes+prevHash)
+      summary: تحقق مزدوج — إعادة حساب سلسلة sha256(bytes+prevHash) + توقيع Ed25519 لكل سجل
       responses:
         '200':
-          description: '{ ok, total, brokenCount, purgedCount, rootHash, records[] }'
+          description: >
+            { ok, total, brokenCount, sigBrokenCount, purgedCount, rootHash,
+            records[]: { chainIndex, sha256, ok, sigOk, reason? } } —
+            ok الكلي يتطلب سلامة السلسلة وصلاحية توقيع كل سجل معًا
 
   /api/ministry:
     get:

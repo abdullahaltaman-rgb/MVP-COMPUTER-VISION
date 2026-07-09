@@ -9,7 +9,7 @@ import {
   type BatchItem,
   type SemanticVerdict,
 } from './gemini';
-import { openCaseFromEvent } from './cases';
+import { openCaseFromEvent, closeCaseCorrected } from './cases';
 import { s3Get, s3Enabled } from './s3';
 
 async function snapshotB64(snap: {
@@ -141,6 +141,33 @@ export async function processVerdict(
   if (!positive) {
     // نفي (أو ثقة دون عتبة المراجعة) يقطع سلسلة التأكيد
     await writeStreak(sKey, { count: 0, lastAt: Date.now() });
+
+    // FR-03: الزوال المؤكد (violation=false) يغلق الحالة المجدولة المفتوحة تلقائيًا
+    // بلقطة الفحص كدليل «تصحيح». إغلاق أول فحص ممتثل مقبول — إعادة الفتح تتطلب
+    // فحصين إيجابيين متتاليين فلا يحدث تذبذب. الإغلاق يُخرج الحالة من نطاق
+    // cron التصعيد (يفحص in_grace فقط) — أي مؤقّت تصعيد معلّق يُلغى ضمنيًا.
+    if (!verdict.violation && rule.mode === 'scheduled') {
+      const openCase = await prisma.case.findFirst({
+        where: {
+          branchId: snap.branchId,
+          itemCode,
+          status: { in: ['new', 'notified', 'in_grace'] },
+        },
+        orderBy: { detectedAt: 'desc' },
+      });
+      if (openCase) {
+        const b64 = await snapshotB64(snap);
+        if (b64) {
+          await closeCaseCorrected(
+            openCase.id,
+            b64,
+            verdict.noteAr
+              ? `زوال المخالفة في الفحص الدلالي المجدول — ${verdict.noteAr}`
+              : 'زوال المخالفة في الفحص الدلالي المجدول (لقطة تصحيح آلية)',
+          );
+        }
+      }
+    }
     return;
   }
 

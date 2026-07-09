@@ -136,58 +136,73 @@ export async function createWeeklyReport(branchId: string, periodStart: Date, pe
   return report;
 }
 
-/** بصمة التشغيل اليومية الموقّعة — سجل يومي غير قابل للإنكار لحالة المنظومة */
+/** بصمة التشغيل اليومية الموقّعة — لكل فرع (FR-04، جاهزة لتعدد الفروع P2) */
 export async function createDailyDigest(date: Date) {
   const dayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
   const range = { gte: dayStart, lt: dayEnd };
 
-  const [events, casesOpened, casesCorrected, casesEscalated, devices, root] = await Promise.all([
-    prisma.event.count({ where: { occurredAt: range } }),
-    prisma.case.count({ where: { detectedAt: range } }),
-    prisma.case.count({ where: { correctedAt: range } }),
-    prisma.case.count({ where: { escalatedAt: range } }),
-    prisma.device.findMany({ select: { id: true, name: true, lastSeenAt: true } }),
+  const [branches, root] = await Promise.all([
+    prisma.branch.findMany({ select: { id: true, code: true, nameAr: true } }),
     chainRoot(prisma),
   ]);
 
-  const payload = {
-    kind: 'ops_digest',
-    version: 1,
-    date: dayStart.toISOString().slice(0, 10),
-    events,
-    casesOpened,
-    casesCorrected,
-    casesEscalated,
-    devices: devices.map((d) => ({
-      id: d.id,
-      name: d.name,
-      lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
-    })),
-    chainRoot: root.rootHash,
-    chainIndex: root.index,
-    generatedAt: new Date().toISOString(),
-  };
+  const digests = [];
+  for (const branch of branches) {
+    const [events, casesOpened, casesCorrected, casesEscalated, devices] = await Promise.all([
+      prisma.event.count({ where: { branchId: branch.id, occurredAt: range } }),
+      prisma.case.count({ where: { branchId: branch.id, detectedAt: range } }),
+      prisma.case.count({ where: { branchId: branch.id, correctedAt: range } }),
+      prisma.case.count({ where: { branchId: branch.id, escalatedAt: range } }),
+      prisma.device.findMany({
+        where: { branchId: branch.id },
+        select: { id: true, name: true, lastSeenAt: true },
+      }),
+    ]);
 
-  const signed = signPayload(payload);
-  return prisma.opsDigest.upsert({
-    where: { date: dayStart },
-    update: {
-      payload: payload as object,
-      rootHash: root.rootHash,
-      sha256: signed.sha256,
-      signature: signed.signature,
-      algo: signed.algo,
-    },
-    create: {
-      date: dayStart,
-      payload: payload as object,
-      rootHash: root.rootHash,
-      sha256: signed.sha256,
-      signature: signed.signature,
-      algo: signed.algo,
-    },
-  });
+    const payload = {
+      kind: 'ops_digest',
+      version: 2,
+      date: dayStart.toISOString().slice(0, 10),
+      branch: { id: branch.id, code: branch.code, nameAr: branch.nameAr },
+      events,
+      casesOpened,
+      casesCorrected,
+      casesEscalated,
+      devices: devices.map((d) => ({
+        id: d.id,
+        name: d.name,
+        lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
+      })),
+      chainRoot: root.rootHash,
+      chainIndex: root.index,
+      generatedAt: new Date().toISOString(),
+    };
+
+    const signed = signPayload(payload);
+    digests.push(
+      await prisma.opsDigest.upsert({
+        where: { date_branchId: { date: dayStart, branchId: branch.id } },
+        update: {
+          payload: payload as object,
+          rootHash: root.rootHash,
+          sha256: signed.sha256,
+          signature: signed.signature,
+          algo: signed.algo,
+        },
+        create: {
+          date: dayStart,
+          branchId: branch.id,
+          payload: payload as object,
+          rootHash: root.rootHash,
+          sha256: signed.sha256,
+          signature: signed.signature,
+          algo: signed.algo,
+        },
+      }),
+    );
+  }
+  return digests;
 }
 
 export { canonicalJson };

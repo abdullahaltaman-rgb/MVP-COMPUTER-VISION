@@ -43,6 +43,27 @@ export function signPayload(payload: unknown): Signed {
   return signBytes(Buffer.from(canonicalJson(payload), 'utf8'));
 }
 
+/** يتحقق من توقيع أنتجه signBytes (Ed25519 بالمفتاح العام، أو إعادة حساب HMAC) */
+export function verifyBytes(bytes: Buffer, signature: string, algo: string): boolean {
+  try {
+    if (algo === 'Ed25519') {
+      const pem = process.env.SIGNING_PRIVATE_KEY_PEM?.trim();
+      if (!pem) return false;
+      const pub = crypto.createPublicKey(crypto.createPrivateKey(pem));
+      return crypto.verify(null, bytes, pub, Buffer.from(signature, 'base64'));
+    }
+    if (algo === 'HMAC-SHA256') {
+      const secret = process.env.AUTH_SECRET || 'dev-secret';
+      const expected = crypto.createHmac('sha256', secret).update(bytes).digest();
+      const given = Buffer.from(signature, 'base64');
+      return expected.length === given.length && crypto.timingSafeEqual(expected, given);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function signingPublicKeyPem(): string | null {
   const pem = process.env.SIGNING_PRIVATE_KEY_PEM?.trim();
   if (!pem) return null;

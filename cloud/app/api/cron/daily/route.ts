@@ -27,8 +27,8 @@ export async function GET(req: Request) {
   await computeDailyMetrics(yesterday);
   await computeDailyMetrics(now);
 
-  // 2) بصمة التشغيل اليومية الموقّعة (عن يوم أمس المكتمل)
-  const digest = await createDailyDigest(yesterday);
+  // 2) بصمة التشغيل اليومية الموقّعة لكل فرع (عن يوم أمس المكتمل)
+  const digests = await createDailyDigest(yesterday);
 
   // 3) إتلاف بايتات الأدلة بعد 90 يومًا — البصمة وسلسلة العهدة تبقيان
   const evidenceCutoff = new Date(now.getTime() - EVIDENCE_RETENTION_DAYS * DAY);
@@ -99,7 +99,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    digestDate: digest.date,
+    digests: digests.map((d) => ({ date: d.date, branchId: d.branchId })),
     evidencePurged: toPurge.length,
     snapshotsPurged: oldSnaps.length,
   });

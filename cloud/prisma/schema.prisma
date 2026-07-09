@@ -29,6 +29,7 @@ model Branch {
   users     User[]
   snapshots Snapshot[]
   reports   Report[]
+  digests   OpsDigest[]
 }
 
 // ── جهاز الحافة (صندوق N100 داخل الفرع) ──
@@ -165,6 +166,10 @@ model Evidence {
   sha256      String
   prevHash    String
   chainIndex  Int      @unique
+  // FR-04: توقيع رقمي لكل سجل دليل (فوق ترابط السلسلة) — على
+  // الرسالة القانونية abyad-evidence|v1|chainIndex|sha256|prevHash
+  signature   String   @default("")
+  sigAlgo     String   @default("")
   cameraName  String   @default("")
   signedAt    DateTime @default(now())
 }
@@ -245,16 +250,20 @@ model DailyMetric {
   @@unique([date, branchId, itemCode])
 }
 
-// ── بصمة التشغيل اليومية الموقّعة ──
+// ── بصمة التشغيل اليومية الموقّعة (FR-04: لكل فرع — جاهزة لتعدد الفروع P2) ──
 model OpsDigest {
   id        String   @id @default(cuid())
-  date      DateTime @unique @db.Date
+  date      DateTime @db.Date
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  branchId  String
   payload   Json
   rootHash  String
   sha256    String
   signature String
   algo      String   @default("Ed25519")
   createdAt DateTime @default(now())
+
+  @@unique([date, branchId])
 }
 
 // ── التقرير الأسبوعي الموقّع للكفيل (الخميس 17:00) ──

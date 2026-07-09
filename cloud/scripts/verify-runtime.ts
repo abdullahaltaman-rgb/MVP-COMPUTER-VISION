@@ -124,9 +124,15 @@ async function main() {
     `دقة=${cal.precision?.toFixed(2)}`);
   check('البوابة غير مجتازة (<200)', cal.gatePassed === false);
 
-  // 9) بصمة التشغيل اليومية الموقّعة
-  const digest = await createDailyDigest(new Date());
-  check('بصمة تشغيل موقّعة', digest.signature.length > 20 && digest.sha256.length === 64, digest.algo);
+  // 9) بصمة التشغيل اليومية الموقّعة — لكل فرع (FR-04)
+  const digests = await createDailyDigest(new Date());
+  const digest = digests[0];
+  check(
+    'بصمة تشغيل موقّعة لكل فرع',
+    digests.length === 1 && digest.branchId === branch.id &&
+      digest.signature.length > 20 && digest.sha256.length === 64,
+    digest.algo,
+  );
 
   // 10) التقرير الأسبوعي الموقّع + PDF
   const report = await createWeeklyReport(branch.id, new Date(Date.now() - 7 * 864e5), new Date());
@@ -190,6 +196,55 @@ async function main() {
   const case6 = await prisma.case.findFirst({ where: { itemCode: '10/4/1/1' } });
   check('فُتحت حالة 10/4/1/1 كاملة (in_grace، غرامة 500)',
     Boolean(case6 && case6.status === 'in_grace' && case6.potentialFine === 500), case6?.refNo ?? '');
+
+  // 12) FR-03: الفحص المجدول الممتثل يغلق الحالة المفتوحة تلقائيًا بلقطة تصحيح
+  //     (المهلة تُنتهى صناعيًا أولًا لإثبات إلغاء مؤقّت التصعيد المعلّق)
+  await prisma.case.update({
+    where: { id: case6!.id },
+    data: { graceDeadline: new Date(Date.now() - 1000) },
+  });
+  await processVerdict(`${(await mkSnap()).id}|10/4/1/1`, {
+    violation: false,
+    confidence: 0.9,
+    noteAr: 'الطاولة مغطاة بقماش نظيف',
+  });
+  const closed6 = await prisma.case.findUniqueOrThrow({ where: { id: case6!.id } });
+  check('FR-03: الفحص الممتثل أغلق الحالة تلقائيًا (corrected)', closed6.status === 'corrected');
+  const corrEv = await prisma.evidence.findFirst({
+    where: { caseId: case6!.id, kind: 'correction' },
+  });
+  check('FR-03: لقطة التصحيح أُلحقت بسلسلة العهدة', Boolean(corrEv));
+  // مؤقّت التصعيد المعلّق أُلغي: مسار cron (المهلة منتهية) لا يمس حالة مغلقة
+  await escalateCase(case6!.id, 'grace_expired');
+  check(
+    'FR-03: التصعيد المعلّق أُلغي بالإغلاق (cron لا يمس المغلقة)',
+    (await prisma.case.findUniqueOrThrow({ where: { id: case6!.id } })).status === 'corrected',
+  );
+
+  // 13) FR-04: توقيع رقمي لكل سجل — التحقق يكشف التوقيع المعطوب رغم سلامة السلسلة
+  let vr2 = await verifyChain(prisma);
+  check(
+    'FR-04: كل السجلات موقّعة وصالحة',
+    vr2.ok && vr2.sigBrokenCount === 0 && vr2.records.every((r) => r.sigOk),
+    `${vr2.total} سجل`,
+  );
+  const target = await prisma.evidence.findFirstOrThrow({ where: { chainIndex: 0 } });
+  const originalSig = target.signature;
+  await prisma.evidence.update({
+    where: { id: target.id },
+    data: { signature: Buffer.from('tampered-signature-bytes').toString('base64') },
+  });
+  vr2 = await verifyChain(prisma);
+  const flagged = vr2.records.find((r) => r.chainIndex === 0);
+  check(
+    'FR-04: سلسلة سليمة + توقيع معطوب → السجل يُعلَّم مكسورًا',
+    !vr2.ok && vr2.sigBrokenCount === 1 && vr2.brokenCount === 0 &&
+      Boolean(flagged && !flagged.ok && !flagged.sigOk && flagged.reason?.includes('توقيع')),
+    flagged?.reason ?? '',
+  );
+  await prisma.evidence.update({ where: { id: target.id }, data: { signature: originalSig } });
+  vr2 = await verifyChain(prisma);
+  check('FR-04: استعادة التوقيع تعيد التحقق أخضر', vr2.ok && vr2.sigBrokenCount === 0);
 
   // أعد الوضع الصامت لحالته الافتراضية
   await prisma.branch.update({ where: { id: branch.id }, data: { silentMode: true } });

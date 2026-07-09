@@ -1,6 +1,16 @@
 import type { PrismaClient } from '@prisma/client';
 import { computeEvidenceHash, GENESIS_HASH } from './hash';
 import { s3Enabled, s3Get, s3Put } from './s3';
+import { signBytes, verifyBytes } from './sign';
+
+/** الرسالة القانونية لتوقيع سجل الدليل (FR-04) — مستقلة عن البايتات فتصمد بعد الإتلاف */
+export function evidenceSignedMessage(
+  chainIndex: number,
+  sha256: string,
+  prevHash: string,
+): Buffer {
+  return Buffer.from(`abyad-evidence|v1|${chainIndex}|${sha256}|${prevHash}`, 'utf8');
+}
 
 export interface AppendInput {
   caseId?: string | null;
@@ -31,6 +41,8 @@ export async function appendEvidence(prisma: PrismaClient, input: AppendInput) {
     const chainIndex = meta.lastIndex + 1;
     const sha256 = computeEvidenceHash(input.imageB64, prevHash);
     const s3Key = useS3 ? `evidence/${chainIndex}-${sha256.slice(0, 16)}.jpg` : null;
+    // FR-04: توقيع رقمي لكل سجل فوق ترابط السلسلة
+    const recordSig = signBytes(evidenceSignedMessage(chainIndex, sha256, prevHash));
 
     const ev = await tx.evidence.create({
       data: {
@@ -42,6 +54,8 @@ export async function appendEvidence(prisma: PrismaClient, input: AppendInput) {
         sha256,
         prevHash,
         chainIndex,
+        signature: recordSig.signature,
+        sigAlgo: recordSig.algo,
         cameraName: input.cameraName ?? '',
         signedAt: input.signedAt ?? new Date(),
       },
@@ -84,6 +98,8 @@ export interface VerifyRecord {
   expected: string;
   prevHash: string;
   ok: boolean;
+  /** صحة توقيع السجل الرقمي (FR-04) — مستقلة عن سلامة السلسلة */
+  sigOk: boolean;
   purged?: boolean;
   reason?: string;
 }
@@ -92,15 +108,18 @@ export interface VerifyResult {
   ok: boolean;
   total: number;
   brokenCount: number;
+  sigBrokenCount: number;
   purgedCount: number;
   rootHash: string;
   records: VerifyRecord[];
 }
 
 /**
- * يُعيد حساب السلسلة كاملةً بترتيب chainIndex ويكشف أي تلاعب.
- * الأدلة المُتلفة بايتاتها (سياسة 90 يومًا) يُتحقق من ترابط prevHash لها فقط
- * دون إعادة حساب البصمة — وتُعلَّم purged في النتيجة.
+ * يُعيد حساب السلسلة كاملةً بترتيب chainIndex ويكشف أي تلاعب،
+ * ويتحقق من توقيع كل سجل على حدة (FR-04) — الفشلان مستقلان:
+ * سجل بسلسلة سليمة وتوقيع معطوب يُعلَّم مكسورًا مع سببه.
+ * الأدلة المُتلفة بايتاتها (سياسة 90 يومًا) يُتحقق من ترابط prevHash
+ * وتوقيع سجلها فقط دون إعادة حساب البصمة — وتُعلَّم purged.
  */
 export async function verifyChain(prisma: PrismaClient): Promise<VerifyResult> {
   const evidences = await prisma.evidence.findMany({
@@ -113,55 +132,59 @@ export async function verifyChain(prisma: PrismaClient): Promise<VerifyResult> {
   let prev =
     evidences.length && evidences[0].chainIndex > 0 ? evidences[0].prevHash : GENESIS_HASH;
   let broken = 0;
+  let sigBroken = 0;
   let purged = 0;
 
   for (const e of evidences) {
     const linkOk = e.prevHash === prev;
-    const b64 = await evidenceBytesB64(e);
+    const sigOk =
+      e.signature.length > 0 &&
+      verifyBytes(evidenceSignedMessage(e.chainIndex, e.sha256, e.prevHash), e.signature, e.sigAlgo);
+    if (!sigOk) sigBroken++;
 
+    const b64 = await evidenceBytesB64(e);
+    let hashOk = true;
+    let expected = e.sha256;
+    let isPurged = false;
     if (b64 === null) {
       purged++;
-      const ok = linkOk;
-      if (!ok) broken++;
-      records.push({
-        id: e.id,
-        caseId: e.caseId,
-        chainIndex: e.chainIndex,
-        sha256: e.sha256,
-        expected: e.sha256,
-        prevHash: e.prevHash,
-        ok,
-        purged: true,
-        reason: ok ? undefined : 'رابط السلسلة (prevHash) غير متطابق',
-      });
+      isPurged = true;
     } else {
-      const expected = computeEvidenceHash(b64, prev);
-      const hashOk = e.sha256 === expected;
-      const ok = linkOk && hashOk;
-      if (!ok) broken++;
-      records.push({
-        id: e.id,
-        caseId: e.caseId,
-        chainIndex: e.chainIndex,
-        sha256: e.sha256,
-        expected,
-        prevHash: e.prevHash,
-        ok,
-        reason: ok
-          ? undefined
-          : !hashOk
-            ? 'بصمة الدليل لا تطابق محتواه (تلاعب محتمل بالبايتات)'
-            : 'رابط السلسلة (prevHash) غير متطابق',
-      });
+      expected = computeEvidenceHash(b64, prev);
+      hashOk = e.sha256 === expected;
     }
+
+    const ok = linkOk && hashOk && sigOk;
+    if (!(linkOk && hashOk)) broken++;
+    records.push({
+      id: e.id,
+      caseId: e.caseId,
+      chainIndex: e.chainIndex,
+      sha256: e.sha256,
+      expected,
+      prevHash: e.prevHash,
+      ok,
+      sigOk,
+      purged: isPurged || undefined,
+      reason: ok
+        ? undefined
+        : !hashOk
+          ? 'بصمة الدليل لا تطابق محتواه (تلاعب محتمل بالبايتات)'
+          : !linkOk
+            ? 'رابط السلسلة (prevHash) غير متطابق'
+            : e.signature.length === 0
+              ? 'السجل بلا توقيع رقمي'
+              : 'توقيع السجل الرقمي غير صالح (تلاعب محتمل بالسجل)',
+    });
     // نُكمل بالبصمة المخزّنة كي ينحصر أثر الكسر في السجل المتأثر وتاليه
     prev = e.sha256;
   }
 
   return {
-    ok: broken === 0,
+    ok: broken === 0 && sigBroken === 0,
     total: evidences.length,
     brokenCount: broken,
+    sigBrokenCount: sigBroken,
     purgedCount: purged,
     rootHash: evidences.length ? evidences[evidences.length - 1].sha256 : GENESIS_HASH,
     records,
