@@ -136,8 +136,28 @@ async function main() {
   const wkNotif = await prisma.notification.findFirst({ where: { type: 'weekly_report', audience: 'kafeel' } });
   check('إشعار التقرير للكفيل', Boolean(wkNotif));
 
-  // 11) البند السادس 10/4/1/1: فحصان مجدولان متتاليان → حدث وحالة (E2E)
+  // 10.5) مطابقة PRD §5 (قرارات 2026-07-09): النوافذ والعتبات والتتابع
   await ensureRuleConfigs();
+  const prdExpected: Record<string, Partial<{ confirmWindowSec: number; autoThreshold: number; consecutiveChecks: number; zones: string[] }>> = {
+    '3/8/1/1': { confirmWindowSec: 60, autoThreshold: 0.85, zones: ['processing_area', 'reception_pos'] },
+    '1/4/1/1': { confirmWindowSec: 30, autoThreshold: 0.85 },
+    '7/8/1/1': { confirmWindowSec: 120, autoThreshold: 0.85 },
+    '1/5/1/1': { autoThreshold: 0.8, consecutiveChecks: 2 },
+    '6/5/1/1': { autoThreshold: 0.8, consecutiveChecks: 2 },
+    '10/4/1/1': { autoThreshold: 0.8, consecutiveChecks: 2 },
+  };
+  for (const [code, exp] of Object.entries(prdExpected)) {
+    const r = await prisma.ruleConfig.findUniqueOrThrow({ where: { itemCode: code } });
+    const ok =
+      (exp.confirmWindowSec === undefined || r.confirmWindowSec === exp.confirmWindowSec) &&
+      (exp.autoThreshold === undefined || r.autoThreshold === exp.autoThreshold) &&
+      (exp.consecutiveChecks === undefined || r.consecutiveChecks === exp.consecutiveChecks) &&
+      (exp.zones === undefined || JSON.stringify(r.zones) === JSON.stringify(exp.zones));
+    check(`مطابقة PRD §5 — ${code}`, ok,
+      `window=${r.confirmWindowSec} th=${r.autoThreshold} consec=${r.consecutiveChecks}`);
+  }
+
+  // 11) البند السادس 10/4/1/1: فحصان مجدولان متتاليان → حدث وحالة (E2E)
   const rule6 = await prisma.ruleConfig.findUniqueOrThrow({ where: { itemCode: '10/4/1/1' } });
   check('قاعدة 10/4/1/1 مبذورة (عتبة 0.80، فحصان)',
     rule6.autoThreshold === 0.8 && rule6.consecutiveChecks === 2 && rule6.mode === 'scheduled');

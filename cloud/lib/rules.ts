@@ -25,7 +25,7 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     mode: 'live',
     autoThreshold: 0.85,
     reviewThreshold: 0.6,
-    confirmWindowSec: 45,
+    confirmWindowSec: 60, // PRD §5: زي غير مطابق ≥ 60 ث
     cooldownSec: 1800,
     zones: ['processing_area', 'reception_pos'],
     objects: ['person'],
@@ -40,7 +40,7 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     mode: 'live',
     autoThreshold: 0.85,
     reviewThreshold: 0.6,
-    confirmWindowSec: 60,
+    confirmWindowSec: 30, // PRD §5: تأكيد 3 إطارات / 30 ث
     cooldownSec: 1800,
     zones: ['processing_area'],
     objects: ['person'],
@@ -55,7 +55,7 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     mode: 'live',
     autoThreshold: 0.85,
     reviewThreshold: 0.6,
-    confirmWindowSec: 30,
+    confirmWindowSec: 120, // PRD §5: أدوات طعام على سطح عمل ≥ 120 ث
     cooldownSec: 900,
     zones: ['processing_area', 'reception_pos'],
     objects: ['cup', 'bottle', 'bowl', 'sandwich', 'banana', 'apple', 'orange', 'donut', 'cake'],
@@ -68,14 +68,14 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     // تكدس النفايات — فحص دلالي مجدول كل 120 دقيقة
     itemCode: '1/5/1/1',
     mode: 'scheduled',
-    autoThreshold: 0.85,
+    autoThreshold: 0.8, // PRD §5
     reviewThreshold: 0.6,
     confirmWindowSec: 0,
     cooldownSec: 7200,
     zones: ['waste_point'],
     objects: [],
     scheduleMinutes: 120,
-    consecutiveChecks: 1,
+    consecutiveChecks: 2, // PRD §5: تأكيد بفحصين متتاليين
     semanticPromptAr:
       'انظر إلى نقطة النفايات في الصورة: هل توجد نفايات متكدسة أو أكياس متراكمة خارج الحاويات لم يتم التخلص منها أولًا بأول؟',
   },
@@ -83,14 +83,14 @@ export const RULE_DEFAULTS: RuleDefaults[] = [
     // حاويات نفايات غير مغطاة — فحص دلالي مجدول كل 120 دقيقة
     itemCode: '6/5/1/1',
     mode: 'scheduled',
-    autoThreshold: 0.85,
+    autoThreshold: 0.8, // PRD §5
     reviewThreshold: 0.6,
     confirmWindowSec: 0,
     cooldownSec: 7200,
     zones: ['waste_point'],
     objects: [],
     scheduleMinutes: 120,
-    consecutiveChecks: 1,
+    consecutiveChecks: 2, // PRD §5: تأكيد بفحصين متتاليين
     semanticPromptAr:
       'انظر إلى حاويات النفايات في الصورة: هل توجد حاوية نفايات مكشوفة دون غطاء محكم؟',
   },

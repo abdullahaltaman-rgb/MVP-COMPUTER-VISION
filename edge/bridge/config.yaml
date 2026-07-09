@@ -22,8 +22,8 @@ rules:
   - item_code: '3/8/1/1' # عامل دون زي/كمامة/قفازات/غطاء شعر
     mode: live
     objects: [person]
-    zones: [processing_area, reception_pos]
-    confirm_window_sec: 45
+    zones: [processing_area, reception_pos] # قرار المالك: كاونتر الاستقبال منطقة عمل — يبقى
+    confirm_window_sec: 60 # PRD §5: زي غير مطابق ≥ 60 ث
     cooldown_sec: 1800
     auto_threshold: 0.85
     review_threshold: 0.60
@@ -33,7 +33,7 @@ rules:
     mode: live
     objects: [person]
     zones: [processing_area]
-    confirm_window_sec: 60
+    confirm_window_sec: 30 # PRD §5: تأكيد 3 إطارات / 30 ث
     cooldown_sec: 1800
     auto_threshold: 0.85
     review_threshold: 0.60
@@ -43,7 +43,7 @@ rules:
     mode: live
     objects: [cup, bottle, bowl, sandwich, banana, apple, orange, donut, cake]
     zones: [processing_area, reception_pos]
-    confirm_window_sec: 30
+    confirm_window_sec: 120 # PRD §5: أدوات طعام على سطح عمل ≥ 120 ث
     cooldown_sec: 900
     auto_threshold: 0.85
     review_threshold: 0.60
