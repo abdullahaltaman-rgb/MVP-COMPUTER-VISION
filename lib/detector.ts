@@ -254,11 +254,11 @@ export async function detect(
     }
   }
 
-  // فشل كل النماذج → محاكاة مع إشعار (يتضمّن سبب الفشل مؤقتًا للتشخيص)
+  // فشل كل النماذج → محاكاة مع إشعار
+  if (errors.length) console.warn('Gemini fallback:', errors.join(' | '));
   return {
     results: runMock(imageBase64, ctx),
     provider: 'mock',
     notice: 'تعذّر الوصول إلى محرّك Gemini — تم التحويل مؤقتًا إلى المحاكاة.',
-    debugError: errors.join(' | '),
-  } as DetectResponse & { debugError?: string };
+  };
 }

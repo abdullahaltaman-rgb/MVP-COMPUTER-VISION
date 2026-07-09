@@ -65,7 +65,6 @@ export async function POST(req: NextRequest) {
       reviewQueued: outcome.reviewQueued,
       discarded: outcome.discarded,
       rate: rateInfo || null,
-      debugError: (det as any).debugError || null,
     });
   } catch (e: any) {
     console.error('detect error', e);
