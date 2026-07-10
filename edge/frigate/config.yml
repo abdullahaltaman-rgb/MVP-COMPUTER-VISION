@@ -9,6 +9,17 @@ mqtt:
   topic_prefix: frigate
   client_id: frigate
 
+# ── إعادة بث go2rtc (مدمج في Frigate) ──
+# اتصال واحد فقط بكل كاميرا؛ ffmpeg يقرأ من إعادة البث المحلية (أثبت مع Tapo).
+go2rtc:
+  streams:
+    cam_processing:
+      - rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_PROCESSING_IP}:554/stream1
+    cam_reception:
+      - rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_RECEPTION_IP}:554/stream1
+    cam_waste:
+      - rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_WASTE_IP}:554/stream1
+
 detectors:
   ov:
     type: openvino
@@ -70,11 +81,12 @@ cameras:
   cam_processing:
     ffmpeg:
       inputs:
-        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_PROCESSING_IP}:554/stream1
+        - path: rtsp://127.0.0.1:8554/cam_processing
+          input_args: preset-rtsp-restream
           roles: [detect, record]
       output_args:
-        # -an = إسقاط الصوت نهائيًا من التسجيل (حارس خصوصية)
-        record: preset-record-generic -an
+        # preset-record-generic يتضمن -an داخليًا (بلا صوت — حارس خصوصية)
+        record: preset-record-generic
     detect:
       width: 1280
       height: 720
@@ -87,10 +99,11 @@ cameras:
   cam_reception:
     ffmpeg:
       inputs:
-        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_RECEPTION_IP}:554/stream1
+        - path: rtsp://127.0.0.1:8554/cam_reception
+          input_args: preset-rtsp-restream
           roles: [detect, record]
       output_args:
-        record: preset-record-generic -an
+        record: preset-record-generic
     detect:
       width: 1280
       height: 720
@@ -106,10 +119,11 @@ cameras:
   cam_waste:
     ffmpeg:
       inputs:
-        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_WASTE_IP}:554/stream1
+        - path: rtsp://127.0.0.1:8554/cam_waste
+          input_args: preset-rtsp-restream
           roles: [detect, record]
       output_args:
-        record: preset-record-generic -an
+        record: preset-record-generic
     detect:
       width: 1280
       height: 720
