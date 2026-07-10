@@ -1,0 +1,67 @@
+# ── إعداد Frigate للبروفة المنزلية: كاميرا Tapo C212 واحدة، كشف CPU ──
+# المنطقة processing_area تغطي كامل الإطار — أي جسم في الصورة يُعد داخل المنطقة.
+# نفس حراس الخصوصية: لا صوت، لا وجوه.
+
+mqtt:
+  host: mqtt
+  port: 1883
+  topic_prefix: frigate
+  client_id: frigate
+
+detectors:
+  ov:
+    type: openvino
+    device: CPU # بروفة منزلية — يعمل على أي معالج x86 دون iGPU
+
+model:
+  width: 300
+  height: 300
+
+audio:
+  enabled: false
+
+record:
+  enabled: true
+  retain:
+    days: 2 # بروفة — لا نملأ قرص الجهاز المنزلي
+    mode: motion
+
+snapshots:
+  enabled: true
+  retain:
+    default: 2
+
+objects:
+  track:
+    - person
+    - cup
+    - bottle
+    - bowl
+    - sandwich
+    - banana
+    - apple
+    - orange
+    - donut
+    - cake
+  filters:
+    person:
+      min_score: 0.55
+      threshold: 0.65
+
+cameras:
+  cam_processing:
+    ffmpeg:
+      inputs:
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_PROCESSING_IP}:554/stream1
+          roles: [detect, record]
+      output_args:
+        record: preset-record-generic -an
+    detect:
+      width: 1280
+      height: 720
+      fps: 5
+    zones:
+      processing_area:
+        # كامل الإطار — كل ما تراه الكاميرا يقع في «منطقة المعالجة»
+        coordinates: 0.0,0.0,1.0,0.0,1.0,1.0,0.0,1.0
+        objects: [person, cup, bottle, bowl, sandwich, banana, apple, orange, donut, cake]

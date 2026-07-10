@@ -1,0 +1,58 @@
+# ── إعداد الجسر للبروفة المنزلية: كاميرا واحدة (cam_processing) ──
+# نفس بنود §5 الستة — السحابة تتجاوز هذه القيم عن بُعد كالمعتاد.
+# ملاحظة: heartbeat سيُبلغ عن هذه الكاميرا فقط؛ كاميرتا الاستقبال والنفايات
+# المبذورتان سحابيًا ستظهران «منقطعتين» في /ops — طبيعي ومتوقع في البروفة.
+
+heartbeat_sec: 60
+outbox_flush_sec: 10
+snapshot_interval_minutes: 120
+
+cameras:
+  cam_processing:
+    zones: [processing_area]
+
+rules:
+  - item_code: '3/8/1/1' # عامل دون زي/كمامة/قفازات/غطاء شعر
+    mode: live
+    objects: [person]
+    zones: [processing_area, reception_pos]
+    confirm_window_sec: 60 # PRD §5
+    cooldown_sec: 1800
+    auto_threshold: 0.85
+    review_threshold: 0.60
+    verify: semantic
+
+  - item_code: '1/4/1/1' # ملابس على الأرضية دون السلال
+    mode: live
+    objects: [person]
+    zones: [processing_area]
+    confirm_window_sec: 30 # PRD §5
+    cooldown_sec: 1800
+    auto_threshold: 0.85
+    review_threshold: 0.60
+    verify: semantic
+
+  - item_code: '7/8/1/1' # أكل وشرب في مواقع العمل
+    mode: live
+    objects: [cup, bottle, bowl, sandwich, banana, apple, orange, donut, cake]
+    zones: [processing_area, reception_pos]
+    confirm_window_sec: 120 # PRD §5
+    cooldown_sec: 900
+    auto_threshold: 0.85
+    review_threshold: 0.60
+    verify: semantic
+
+  - item_code: '1/5/1/1'
+    mode: scheduled
+    zones: [waste_point]
+    schedule_minutes: 120
+
+  - item_code: '6/5/1/1'
+    mode: scheduled
+    zones: [waste_point]
+    schedule_minutes: 120
+
+  - item_code: '10/4/1/1' # طاولة كي غير مغطاة — لقطاتها من كاميرا المعالجة
+    mode: scheduled
+    zones: [processing_area]
+    schedule_minutes: 120

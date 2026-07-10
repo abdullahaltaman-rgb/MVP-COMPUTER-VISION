@@ -60,7 +60,6 @@ cameras:
     ffmpeg:
       inputs:
         - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_PROCESSING_IP}:554/stream1
-          input_args: preset-rtsp-restream
           roles: [detect, record]
       output_args:
         # -an = إسقاط الصوت نهائيًا من التسجيل (حارس خصوصية)
@@ -78,7 +77,6 @@ cameras:
     ffmpeg:
       inputs:
         - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_RECEPTION_IP}:554/stream1
-          input_args: preset-rtsp-restream
           roles: [detect, record]
       output_args:
         record: preset-record-generic -an
@@ -98,7 +96,6 @@ cameras:
     ffmpeg:
       inputs:
         - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM_WASTE_IP}:554/stream1
-          input_args: preset-rtsp-restream
           roles: [detect, record]
       output_args:
         record: preset-record-generic -an
