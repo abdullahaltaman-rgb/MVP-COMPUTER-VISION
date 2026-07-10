@@ -13,18 +13,30 @@ detectors:
     type: openvino
     device: CPU # بروفة منزلية — يعمل على أي معالج x86 دون iGPU
 
+# نموذج OpenVINO الافتراضي المضمّن في الحاوية (SSDLite MobileNet v2)
+# الكتلة كاملة كما في وثائق 0.17 (object_detectors → MobileNet v2 Config)
 model:
   width: 300
   height: 300
+  input_tensor: nhwc
+  input_pixel_format: bgr
+  path: /openvino-model/ssdlite_mobilenet_v2.xml
+  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
 
 audio:
   enabled: false
 
+# بنية 0.17: retain تحت record أُزيلت — الاحتفاظ عبر motion/alerts/detections
 record:
   enabled: true
-  retain:
+  motion:
     days: 2 # بروفة — لا نملأ قرص الجهاز المنزلي
-    mode: motion
+  alerts:
+    retain:
+      days: 2
+  detections:
+    retain:
+      days: 2
 
 snapshots:
   enabled: true

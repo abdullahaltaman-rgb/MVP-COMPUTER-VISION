@@ -12,22 +12,33 @@ mqtt:
 detectors:
   ov:
     type: openvino
-    device: AUTO # iGPU لمعالج N100
+    device: GPU # iGPU لمعالج N100 (وفق وثائق 0.17)
 
-# نموذج الكشف الافتراضي المدمج (SSDLite MobileNet) يكفي لأصناف COCO المطلوبة
+# نموذج OpenVINO الافتراضي المضمّن في الحاوية (SSDLite MobileNet v2)
+# الكتلة كاملة كما في وثائق 0.17 (object_detectors → MobileNet v2 Config)
 model:
   width: 300
   height: 300
+  input_tensor: nhwc
+  input_pixel_format: bgr
+  path: /openvino-model/ssdlite_mobilenet_v2.xml
+  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
 
 # لا كشف صوتي — خصوصية (PRD §خصوصية: بلا صوت في أي مكان)
 audio:
   enabled: false
 
+# بنية 0.17: retain تحت record أُزيلت — الاحتفاظ عبر motion/alerts/detections
 record:
   enabled: true
-  retain:
+  motion:
     days: 14 # PRD FR-01: تسجيل دوار محلي 14 يومًا
-    mode: motion
+  alerts:
+    retain:
+      days: 14
+  detections:
+    retain:
+      days: 14
 
 snapshots:
   enabled: true
