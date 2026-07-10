@@ -153,3 +153,39 @@ def test_disabled_rule_never_fires():
     engine.process(ev())
     clock.advance(100)
     assert engine.process(ev()) == []
+
+
+def test_stationary_object_fires_via_tick():
+    """جسم ساكن (كوب على طاولة): Frigate يوقف تحديثاته — النبض يطلق البند."""
+    clock = FakeClock()
+    engine = RulesEngine([make_rule(confirm_window_sec=120)], clock=clock)
+    engine.process(ev())  # رسالة واحدة ثم صمت (سكون)
+    assert engine.tick() == []  # قبل اكتمال النافذة
+    clock.advance(121)
+    cands = engine.tick()
+    assert len(cands) == 1
+    assert cands[0].item_code == '7/8/1/1'
+    assert cands[0].zones_hit == ['processing_area']
+    # لا إطلاق مزدوج: لا من النبض ولا من رسالة لاحقة
+    assert engine.tick() == []
+    assert engine.process(ev()) == []
+
+
+def test_tick_respects_cooldown():
+    clock = FakeClock()
+    engine = RulesEngine([make_rule(confirm_window_sec=30, cooldown_sec=900)], clock=clock)
+    engine.process(ev('obj1'))
+    clock.advance(31)
+    assert len(engine.tick()) == 1
+    engine.process(ev('obj2'))  # جسم جديد أثناء التهدئة
+    clock.advance(31)
+    assert engine.tick() == []
+
+
+def test_end_before_window_never_fires_from_tick():
+    clock = FakeClock()
+    engine = RulesEngine([make_rule(confirm_window_sec=30)], clock=clock)
+    engine.process(ev())
+    engine.process(ev(etype='end'))  # الجسم اختفى قبل اكتمال النافذة
+    clock.advance(60)
+    assert engine.tick() == []

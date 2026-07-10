@@ -50,8 +50,11 @@ class Bridge:
         event = FrigateEvent.from_payload(payload)
         if not event:
             return
+        self._emit_candidates(self.engine.process(event))
 
-        for cand in self.engine.process(event):
+    def _emit_candidates(self, candidates: list) -> None:
+        """بوابة الثقة → التقاط إطار الدليل → طابور offline-first (مسار مشترك للـ MQTT والنبض)."""
+        for cand in candidates:
             rule = self.engine.rules[cand.item_code]
             decision = gate(cand.confidence, rule)
             if decision == 'drop':
@@ -82,6 +85,15 @@ class Bridge:
                 'مرشح %s من %s (ثقة %.2f → %s) دخل الطابور',
                 cand.item_code, cand.camera, cand.confidence, decision,
             )
+
+    def run_rules_ticker(self) -> None:
+        """نبض كل 5 ثوانٍ: يطلق البنود للأجسام الساكنة التي أوقف Frigate تحديثاتها."""
+        while not self._stop.is_set():
+            try:
+                self._emit_candidates(self.engine.tick())
+            except Exception as exc:
+                log.warning('خطأ نبض القواعد: %s', exc)
+            self._stop.wait(5)
 
     def run_mqtt(self) -> None:
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id='abyad-bridge')
@@ -186,6 +198,7 @@ class Bridge:
         log.info('جسر أبيض فيجن %s — يتصل بـ %s', self.s.version, self.s.cloud_base_url)
         threads = [
             threading.Thread(target=self.run_mqtt, name='mqtt', daemon=True),
+            threading.Thread(target=self.run_rules_ticker, name='rules-ticker', daemon=True),
             threading.Thread(target=self.run_heartbeat, name='heartbeat', daemon=True),
             threading.Thread(target=self.run_snapshots, name='snapshots', daemon=True),
             threading.Thread(target=self.run_outbox, name='outbox', daemon=True),

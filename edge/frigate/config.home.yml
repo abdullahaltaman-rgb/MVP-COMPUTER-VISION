@@ -81,6 +81,7 @@ cameras:
         # إلحاق أي شيء بعد اسم الـ preset يكسر مطابقته فيُمرَّر نصًا خامًا لـ ffmpeg
         record: preset-record-generic
     detect:
+      enabled: true # الافتراضي في 0.17 هو False — بدونها لا كشف إطلاقًا
       width: 1280
       height: 720
       fps: 5

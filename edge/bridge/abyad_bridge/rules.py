@@ -58,6 +58,7 @@ class Candidate:
 class _Tracking:
     first_seen: float
     last_score: float
+    zones_hit: list[str] = field(default_factory=list)
     fired: bool = False
 
 
@@ -100,31 +101,53 @@ class RulesEngine:
 
             tr = self._tracking.get(key)
             if tr is None:
-                tr = _Tracking(first_seen=now, last_score=event.score)
+                tr = _Tracking(first_seen=now, last_score=event.score, zones_hit=zones_hit)
                 self._tracking[key] = tr
             tr.last_score = max(tr.last_score, event.score)
+            tr.zones_hit = zones_hit
 
-            if tr.fired:
-                continue
-            if now - tr.first_seen < rule.confirm_window_sec:
-                continue
-            if now < self._cooldown_until.get((rule.item_code, event.camera), 0.0):
-                continue
+            fired = self._try_fire(key, tr, now)
+            if fired:
+                candidates.append(fired)
+        return candidates
 
-            tr.fired = True
-            self._cooldown_until[(rule.item_code, event.camera)] = now + rule.cooldown_sec
-            candidates.append(
-                Candidate(
-                    item_code=rule.item_code,
-                    camera=event.camera,
-                    object_id=event.event_id,
-                    frigate_event_id=event.event_id,
-                    confidence=tr.last_score,
-                    zones_hit=zones_hit,
-                    verify=rule.verify,
-                    occurred_at=now,
-                ),
-            )
+    def _try_fire(self, key: tuple[str, str, str], tr: _Tracking, now: float) -> Candidate | None:
+        """يطلق مرشحًا إن اكتملت نافذة التأكيد وسمحت التهدئة (مرة لكل جسم)."""
+        item_code, camera, event_id = key
+        rule = self.rules.get(item_code)
+        if rule is None or not rule.enabled or tr.fired:
+            return None
+        if now - tr.first_seen < rule.confirm_window_sec:
+            return None
+        if now < self._cooldown_until.get((item_code, camera), 0.0):
+            return None
+
+        tr.fired = True
+        self._cooldown_until[(item_code, camera)] = now + rule.cooldown_sec
+        return Candidate(
+            item_code=item_code,
+            camera=camera,
+            object_id=event_id,
+            frigate_event_id=event_id,
+            confidence=tr.last_score,
+            zones_hit=tr.zones_hit,
+            verify=rule.verify,
+            occurred_at=now,
+        )
+
+    def tick(self) -> list[Candidate]:
+        """نبض دوري: يطلق البنود للأجسام الساكنة.
+
+        Frigate يوقف رسائل update للأجسام الساكنة (كوب على طاولة مثلًا)،
+        فلا يصل حدث MQTT عند اكتمال نافذة التأكيد — هذا النبض يقيس الزمن
+        المنقضي للأجسام المتتبعة ويطلق المرشح دون انتظار رسالة جديدة.
+        """
+        now = self.clock()
+        candidates: list[Candidate] = []
+        for key, tr in list(self._tracking.items()):
+            fired = self._try_fire(key, tr, now)
+            if fired:
+                candidates.append(fired)
         return candidates
 
     def sweep(self, max_age_sec: float = 3600.0) -> None:

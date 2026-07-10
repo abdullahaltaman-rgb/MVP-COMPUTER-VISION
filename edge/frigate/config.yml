@@ -88,6 +88,7 @@ cameras:
         # preset-record-generic يتضمن -an داخليًا (بلا صوت — حارس خصوصية)
         record: preset-record-generic
     detect:
+      enabled: true # الافتراضي في 0.17 هو False — بدونها لا كشف إطلاقًا
       width: 1280
       height: 720
       fps: 5
@@ -105,6 +106,7 @@ cameras:
       output_args:
         record: preset-record-generic
     detect:
+      enabled: true # الافتراضي في 0.17 هو False — بدونها لا كشف إطلاقًا
       width: 1280
       height: 720
       fps: 5
@@ -125,6 +127,7 @@ cameras:
       output_args:
         record: preset-record-generic
     detect:
+      enabled: true # الافتراضي في 0.17 هو False — بدونها لا كشف إطلاقًا
       width: 1280
       height: 720
       fps: 5
