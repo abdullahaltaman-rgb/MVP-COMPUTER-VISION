@@ -91,7 +91,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"  
 
 ### 9) تهيئة القاعدة والبذر (من حاسوبك — مرة واحدة)
 ```bash
-git clone <رابط المستودع> && cd MVP-COMPUTER-VISION/cloud
+git clone <رابط المستودع> && cd MVP-COMPUTER-VISION
 npm install
 export DATABASE_URL="<رابط Postgres من خطوة 1>"
 npm run db:push      # ينشئ الجداول

@@ -17,7 +17,11 @@
 | | المسار | التقنية | الدور |
 |---|---|---|---|
 | **الحافة** | [`/edge`](edge/) | Frigate 0.17 (OpenVINO) + mosquitto + جسر Python 3.11 | داخل الفرع: كشف، قواعد §5، أدلة، طابور offline-first، نبض 60ث |
-| **السحابة** | [`/cloud`](cloud/) | Next.js 14 + Prisma + Postgres + S3 + FCM + Gemini | ingest، بوابة الثقة، الحالات، السلسلة، اللوحات PWA، التقارير |
+| **السحابة** | جذر المستودع | Next.js 14 + Prisma + Postgres + S3 + FCM + Gemini | ingest، بوابة الثقة، الحالات، السلسلة، اللوحات PWA، التقارير |
+
+> تطبيق Next.js يسكن **جذر المستودع** (app/، lib/، package.json، vercel.json…)
+> ليعمل نشر Vercel دون أي إعداد Root Directory. مجلدا `edge/` و`docs/` أشقّاء
+> يتجاهلهما البناء.
 
 ```
 كاميرات RTSP ──► Frigate (OpenVINO) ──► MQTT ──► الجسر (قواعد §5 + نافذة تأكيد)
@@ -48,7 +52,7 @@
 ## تشغيل السحابة
 
 ```bash
-cd cloud
+# من جذر المستودع مباشرة (التطبيق في الجذر)
 npm install
 cp .env.example .env        # DATABASE_URL (Postgres) إلزامي؛ البقية حسب البيئة
 npm run db:push && npm run db:seed   # يطبع رمز الجهاز ورموز دخول الأدوار
@@ -60,14 +64,15 @@ npm run dev
 DATABASE_URL=... npx tsx scripts/verify-runtime.ts   # 24 فحصًا: سلسلة، بوابة، دورة حياة، عبث، تقارير
 ```
 
-**النشر: Vercel** (القرار مُسبَّب في المواصفة): كل المجدولات دفعات قصيرة تناسب
-Vercel Cron (`cloud/vercel.json`) — صحة 5د، دورة حياة 15د، فحص دلالي 120د +
-استطلاع دفعات Gemini 15د، يومي (بصمة تشغيل + مقاييس + إتلاف)، أسبوعي
-(الخميس 14:00 UTC = 17:00 الرياض). كشف الانقطاع يُحسب من آخر نبض عند القراءة،
+**النشر: Vercel** (القرار مُسبَّب في المواصفة). التطبيق في جذر المستودع فيكتشفه
+Vercel تلقائيًا **دون إعداد Root Directory**. الجدولة عبر `vercel.json` في الجذر:
+على خطة Hobby نبضة يومية واحدة `/api/cron/tick` (14:00 UTC = 17:00 الرياض) تشغّل
+كل الصيانة بالتسلسل والتقرير الأسبوعي يوم الخميس؛ على Pro تُقسَّم لتردداتها الأصلية
+(انظر تعليق `lib/maintenance.ts`). كشف الانقطاع يُحسب من آخر نبض عند القراءة،
 فلا حاجة لخادم مقيم (Fly يُبرر فقط عند إضافة بث فيديو حي — خارج نطاق v1).
 
-اضبط Root Directory في Vercel على `cloud/`، وأضف متغيرات `.env.example`
-(Postgres مُدار، S3 متوافق بمنطقة سعودية، `GEMINI_API_KEY`،
+**الإعداد على Vercel:** اترك Root Directory فارغًا (الجذر)، وأضف متغيرات
+`.env.example` (Postgres مُدار، S3 متوافق بمنطقة سعودية، `GEMINI_API_KEY`،
 `FIREBASE_SERVICE_ACCOUNT_B64`، `SIGNING_PRIVATE_KEY_PEM`، `CRON_SECRET`).
 
 ## تشغيل الحافة (داخل الفرع)

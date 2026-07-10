@@ -86,7 +86,7 @@
 
 ## هيكل المستودع
 - `/edge` — صندوق N100: Frigate 0.17 + mosquitto + جسر Python (اختبارات pytest).
-- `/cloud` — Next.js 14 + Prisma/Postgres + PWA عربية RTL (تحقق تشغيلي `scripts/verify-runtime.ts`).
+- جذر المستودع — تطبيق السحابة Next.js 14 + Prisma/Postgres + PWA عربية RTL (تحقق تشغيلي `scripts/verify-runtime.ts`)؛ يسكن الجذر ليعمل نشر Vercel دون إعداد Root Directory.
 - `/docs` — هذه المواصفة + دليل التكامل (OpenAPI + FCM).
 
 </div>
