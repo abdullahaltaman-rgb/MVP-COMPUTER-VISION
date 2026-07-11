@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700;800&amp;family=Noto+Sans+Arabic:wght@400;500;600;700&amp;display=swap">
+<style>
+  body{margin:0;background:#F4F7F5;font-family:'Noto Sans Arabic',sans-serif;color:#0F2942;-webkit-font-smoothing:antialiased}
+  a{color:#165D3A}a:hover{color:#0E3D26}
+  @keyframes om-blink{0%,100%{opacity:1}50%{opacity:.25}}
+  @keyframes om-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  @keyframes om-scan{0%{transform:translateY(-100%)}100%{transform:translateY(400%)}}
+</style>
+</helmet>
+<div dir="rtl" style="min-height:100vh;background:#F4F7F5;display:flex;flex-direction:column">
+
+  <header data-screen-label="الشريط العلوي" style="background:linear-gradient(135deg,#0B3320 0%,#165D3A 70%,#1B6B44 100%);border-bottom:3px solid #B8934A;color:#fff">
+    <div style="max-width:1560px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#1E7248,#0B3320);border:2px solid #B8934A;display:grid;place-items:center;flex:none">
+          <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:11.5px;color:#F3E7CC">رصد</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <h1 style="margin:0;font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:17.5px;color:#fff">منصة رصد الامتثال البلدي <span style="color:#B8934A;font-weight:600">·</span> لوحة المنشأة</h1>
+          <span style="font-size:11px;color:#C9DCD0">غرفة تحكم المشغّل — إدارة الامتثال الذاتي</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:2px;text-align:left;border-left:1px solid rgba(255,255,255,.18);padding-left:18px">
+          <span style="font-size:12.5px;font-weight:700;color:#E8F1EA">مغسلة النخيل — حي النسيم</span>
+          <span style="font-size:10.5px;color:#AFC8B7">رخصة بلدية <span style="font-family:ui-monospace,monospace">40118762</span></span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;text-align:left;border-left:1px solid rgba(255,255,255,.18);padding-left:18px">
+          <span style="font-size:11.5px;font-weight:600;color:#E8F1EA">الجمعة 26 محرم 1448هـ · 11 يوليو 2026م</span>
+          <span style="font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:600;letter-spacing:1px;color:#fff">{{ timeStr }}</span>
+        </div>
+        <button onClick="{{ onBell }}" title="الإشعارات" style="position:relative;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);color:#fff;font-size:17px;cursor:pointer;display:grid;place-items:center" style-hover="background:rgba(255,255,255,.2)">🔔<span style="position:absolute;top:-3px;left:-3px;min-width:18px;height:18px;border-radius:100px;background:#CE4A3C;border:2px solid #10402A;color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;padding:0 3px;box-sizing:border-box">1</span></button>
+      </div>
+    </div>
+  </header>
+
+  <main style="max-width:1560px;margin:0 auto;width:100%;box-sizing:border-box;padding:18px 24px;display:flex;flex-direction:column;gap:16px;flex:1">
+
+    <section data-screen-label="حالة الفرع" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px">
+      <div style="background:linear-gradient(160deg,#FFFFFF,#FDF9F0);border:1.5px solid #E0982C;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 10px rgba(224,152,44,.14)">
+        <div style="position:relative;width:78px;height:78px;flex:none">
+          <svg width="78" height="78" viewBox="0 0 92 92" style="transform:rotate(-90deg)">
+            <circle cx="46" cy="46" r="40" fill="none" stroke="#F0E5CF" stroke-width="9"></circle>
+            <circle cx="46" cy="46" r="40" fill="none" stroke="#E0982C" stroke-width="9" stroke-linecap="round" stroke-dasharray="191 251.3"></circle>
+          </svg>
+          <span style="position:absolute;inset:0;display:grid;place-items:center;font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:16px;color:#A96F14">76%</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0;flex:1">
+          <span style="font-size:11.5px;font-weight:700;color:#A96F14;white-space:nowrap">مؤشر امتثال منشأتك</span>
+          <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:24px;color:#0F2942;line-height:1">76%</span>
+          <span style="font-size:10.5px;font-weight:700;color:#165D3A">▲ +4% هذا الأسبوع</span>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #EFE0BE;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 3px rgba(15,41,66,.05)">
+        <span style="font-size:11.5px;font-weight:600;color:#5B6B78">حالات تحتاج إجراءك الآن</span>
+        <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:30px;color:#E0982C;line-height:1">1</span>
+        <span style="font-size:11px;color:#A96F14;font-weight:600">مهلة التصحيح تعمل — ابدأ الآن</span>
+      </div>
+      <div style="background:#fff;border:1px solid #E3EBE5;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 3px rgba(15,41,66,.05)">
+        <span style="font-size:11.5px;font-weight:600;color:#5B6B78">صُحّح هذا الشهر</span>
+        <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:30px;color:#165D3A;line-height:1">6 <span style="font-size:17px">✓</span></span>
+        <span style="font-size:11px;color:#8A99A5">جميعها أُغلقت دون غرامة</span>
+      </div>
+      <div style="background:#fff;border:1px solid #E3EBE5;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 3px rgba(15,41,66,.05)">
+        <span style="font-size:11.5px;font-weight:600;color:#5B6B78">أيام بلا مخالفة متصعّدة</span>
+        <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:30px;color:#0F2942;line-height:1">23 <span style="font-size:15px;color:#5B6B78;font-weight:600">يومًا</span> 🛡</span>
+        <span style="font-size:11px;color:#8A99A5">أفضل سلسلة لهذا العام</span>
+      </div>
+    </section>
+
+    <section data-screen-label="البث المباشر ومركز الإجراء" style="display:grid;grid-template-columns:372px minmax(0,1fr);gap:16px;align-items:start">
+
+      <aside data-screen-label="مركز الإجراء" style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:#fff;border:2px solid #E0982C;border-radius:13px;overflow:hidden;box-shadow:0 3px 16px rgba(224,152,44,.18)">
+          <div style="background:linear-gradient(180deg,#FBF3E3,#F8EDD6);padding:11px 16px;display:flex;align-items:center;gap:9px;border-bottom:1px solid #EFE0BE">
+            <span style="width:9px;height:9px;border-radius:50%;background:#E0982C;animation:om-blink 1.3s infinite"></span>
+            <h2 style="margin:0;font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:14px;color:#A96F14">مخالفة نشطة — مطلوب تصحيحك</h2>
+          </div>
+          <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="width:98px;height:62px;border-radius:7px;background:linear-gradient(135deg,#1C2733,#2E3D4D);position:relative;overflow:hidden;flex:none;border:1px solid #33424F">
+                <span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.04) 3px,rgba(255,255,255,.04) 4px)"></span>
+                <span style="position:absolute;top:16px;right:30px;width:28px;height:36px;border:1.5px solid #5EE39A;border-radius:2px"></span>
+                <span style="position:absolute;bottom:3px;right:5px;font-family:ui-monospace,monospace;font-size:6.5px;color:#9FD4B8">CAM1 · 14:32:08</span>
+                <span style="position:absolute;top:3px;left:5px;font-family:ui-monospace,monospace;font-size:6.5px;color:#FF6B5E">● REC</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:#0F2942;background:#F0F5F2;border-radius:5px;padding:2px 7px;align-self:flex-start">3/8/1/1</span>
+                <span style="font-size:13px;font-weight:700;color:#0F2942;line-height:1.4">عامل دون الزي الموحد</span>
+                <span style="font-size:11px;color:#5B6B78">رُصدت اليوم 14:32</span>
+              </div>
+            </div>
+            <div style="background:#FBF3E3;border:1px solid #EFE0BE;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+                <span style="font-size:11.5px;font-weight:700;color:#8A6A1F">متبقٍ للتصحيح ⏳</span>
+                <span style="font-family:ui-monospace,monospace;font-size:24px;font-weight:700;color:#A96F14;letter-spacing:1.5px">{{ cdStr }}</span>
+              </div>
+              <span style="height:7px;border-radius:7px;background:#F0E5CF;overflow:hidden;display:block"><span style="display:block;height:100%;width:{{ cdPct }}%;background:linear-gradient(90deg,#E0982C,#C9820F);border-radius:7px;transition:width 1s linear"></span></span>
+              <span style="font-size:10.5px;color:#8A6A1F">من أصل مهلة 48 ساعة</span>
+            </div>
+            <p style="margin:0;font-size:12px;color:#38505F;line-height:1.7;background:#EFF6F1;border:1px solid #D9E8DE;border-radius:9px;padding:9px 12px">صحّح الآن وتجنّب غرامة <b style="color:#0F2942">2,000 ريال</b> — التصحيح خلال المهلة يغلق الحالة تلقائيًا.</p>
+            <button onClick="{{ onUpload }}" style="font-family:'Noto Kufi Arabic',sans-serif;font-size:14px;font-weight:700;color:#2B2008;background:linear-gradient(180deg,#D9B565,#B8934A);border:1px solid #8F6E2E;border-radius:10px;padding:13px 18px;cursor:pointer;box-shadow:0 3px 12px rgba(184,147,74,.35)" style-hover="background:linear-gradient(180deg,#E2C075,#C29D52)">📸 رفع لقطة التصحيح</button>
+            <button onClick="{{ onReview }}" style="font-family:'Noto Sans Arabic',sans-serif;font-size:12.5px;font-weight:700;color:#0F2942;background:#fff;border:1px solid #D5E0D8;border-radius:10px;padding:11px 18px;cursor:pointer" style-hover="background:#F0F5F2">طلب مراجعة بشرية</button>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E3EBE5;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(15,41,66,.06)">
+          <div style="padding:10px 15px;border-bottom:1px solid #EAF0EC;background:#F7FAF8">
+            <h2 style="margin:0;font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:13px;color:#0F2942">إشعاراتك</h2>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;gap:10px;padding:10px 15px;border-bottom:1px solid #EFF4F0;align-items:flex-start" style-hover="background:#F7FAF8">
+              <span style="margin-top:5px;width:8px;height:8px;flex:none;border-radius:50%;background:#E0982C"></span>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:12px;font-weight:700;color:#0F2942">رُصدت مخالفة جديدة — الزي الموحد</span>
+                <span style="font-size:10.5px;color:#8A99A5">اليوم 14:32 · مهلة التصحيح بدأت</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;padding:10px 15px;border-bottom:1px solid #EFF4F0;align-items:flex-start" style-hover="background:#F7FAF8">
+              <span style="margin-top:5px;width:8px;height:8px;flex:none;border-radius:50%;background:#1B7A4A"></span>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:12px;font-weight:700;color:#0F2942">تم قبول تصحيحك ✓ — حاويات النفايات</span>
+                <span style="font-size:10.5px;color:#8A99A5">أمس 18:20 · أُغلقت الحالة دون غرامة</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;padding:10px 15px;align-items:flex-start" style-hover="background:#F7FAF8">
+              <span style="margin-top:5px;width:8px;height:8px;flex:none;border-radius:50%;background:#8A99A5"></span>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:12px;font-weight:700;color:#0F2942">تقريرك الأسبوعي جاهز</span>
+                <span style="font-size:10.5px;color:#8A99A5">الخميس 09:00 · امتثالك تحسّن +4%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section data-screen-label="بث فرعك المباشر" style="display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <h2 style="margin:0;font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:15.5px;color:#0F2942">بث فرعك المباشر</h2>
+          <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:#165D3A"><span style="width:8px;height:8px;border-radius:50%;background:#1B7A4A;animation:om-blink 1.6s infinite"></span>3 كاميرات متصلة</span>
+        </div>
+
+        <div style="background:#0D141B;border:1px solid #26323E;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(15,41,66,.18)">
+          <div style="position:relative;height:350px;background:linear-gradient(160deg,#141D26 0%,#1A2530 45%,#101820 100%);overflow:hidden">
+            <span style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(159,212,184,.07),transparent 60%)"></span>
+            <span style="position:absolute;bottom:0;left:0;right:0;height:45%;background:linear-gradient(180deg,transparent,rgba(8,12,16,.55))"></span>
+            <span style="position:absolute;bottom:18%;right:8%;width:110px;height:140px;background:linear-gradient(180deg,#232F3B,#1A242E);border-radius:6px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)"></span>
+            <span style="position:absolute;bottom:24%;right:10.5%;width:58px;height:58px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#2E3E4D,#141D26);box-shadow:inset 0 0 0 2px rgba(255,255,255,.07)"></span>
+            <span style="position:absolute;bottom:18%;right:21%;width:110px;height:140px;background:linear-gradient(180deg,#212C38,#18222C);border-radius:6px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)"></span>
+            <span style="position:absolute;bottom:24%;right:23.5%;width:58px;height:58px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#2B3A48,#131C25);box-shadow:inset 0 0 0 2px rgba(255,255,255,.07)"></span>
+            <span style="position:absolute;bottom:14%;left:12%;width:200px;height:13px;background:#202B36;border-radius:3px"></span>
+            <span style="position:absolute;bottom:15.5%;left:14%;width:165px;height:64px;background:linear-gradient(180deg,rgba(46,61,77,.5),transparent);border-radius:4px"></span>
+            <span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.028) 3px,rgba(255,255,255,.028) 4px)"></span>
+            <span style="position:absolute;left:0;right:0;top:0;height:70px;background:linear-gradient(180deg,rgba(159,212,184,.05),transparent);animation:om-scan 7s linear infinite"></span>
+            <span style="position:absolute;inset:0;box-shadow:inset 0 0 120px rgba(0,0,0,.55)"></span>
+            <span style="position:absolute;top:12px;right:14px;background:rgba(13,20,27,.75);color:#E8F1EA;font-size:12px;font-weight:700;border-radius:7px;padding:5px 12px;font-family:'Noto Kufi Arabic',sans-serif">كاميرا منطقة المعالجة</span>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.78));padding:24px 14px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:#FF6B5E"><span style="width:8px;height:8px;border-radius:50%;background:#FF6B5E;animation:om-blink 1.1s infinite"></span>مباشر · LIVE</span>
+              <span style="font-family:ui-monospace,monospace;font-size:12px;color:#C6D4CB;letter-spacing:1px">{{ camTs }}</span>
+              <span style="display:flex;align-items:center;gap:12px">
+                <span style="font-family:ui-monospace,monospace;font-size:11px;font-weight:600;color:#9FD4B8">RUH-001-CAM1</span>
+                <button onClick="{{ onExpand }}" title="ملء الشاشة" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:6px;color:#fff;width:28px;height:28px;cursor:pointer;font-size:13px;line-height:1;display:grid;place-items:center" style-hover="background:rgba(255,255,255,.22)">⛶</button>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:#0D141B;border:1px solid #26323E;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(15,41,66,.15)">
+            <div style="position:relative;height:200px;background:linear-gradient(150deg,#18222C 0%,#212D39 55%,#131C25 100%);overflow:hidden">
+              <span style="position:absolute;bottom:0;left:0;right:0;height:40%;background:linear-gradient(180deg,transparent,rgba(8,12,16,.5))"></span>
+              <span style="position:absolute;bottom:22%;left:10%;width:170px;height:48px;background:linear-gradient(180deg,#26333F,#1B2630);border-radius:5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)"></span>
+              <span style="position:absolute;bottom:40%;left:14%;width:40px;height:30px;background:#202B36;border-radius:3px"></span>
+              <span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.028) 3px,rgba(255,255,255,.028) 4px)"></span>
+              <span style="position:absolute;inset:0;box-shadow:inset 0 0 90px rgba(0,0,0,.55)"></span>
+              <span style="position:absolute;top:10px;right:12px;background:rgba(13,20,27,.75);color:#E8F1EA;font-size:11px;font-weight:700;border-radius:6px;padding:4px 10px;font-family:'Noto Kufi Arabic',sans-serif">كاميرا الاستقبال ونقطة البيع</span>
+              <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.78));padding:20px 12px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span style="display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;color:#FF6B5E"><span style="width:7px;height:7px;border-radius:50%;background:#FF6B5E;animation:om-blink 1.1s infinite"></span>LIVE</span>
+                <span style="font-family:ui-monospace,monospace;font-size:10.5px;color:#C6D4CB">{{ camTs }}</span>
+                <span style="display:flex;align-items:center;gap:9px">
+                  <span style="font-family:ui-monospace,monospace;font-size:10px;font-weight:600;color:#9FD4B8">CAM2</span>
+                  <button onClick="{{ onExpand }}" title="ملء الشاشة" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:5px;color:#fff;width:24px;height:24px;cursor:pointer;font-size:11px;line-height:1;display:grid;place-items:center" style-hover="background:rgba(255,255,255,.22)">⛶</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#0D141B;border:1px solid #26323E;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(15,41,66,.15)">
+            <div style="position:relative;height:200px;background:linear-gradient(155deg,#151E27 0%,#1D2833 50%,#111923 100%);overflow:hidden">
+              <span style="position:absolute;bottom:0;left:0;right:0;height:40%;background:linear-gradient(180deg,transparent,rgba(8,12,16,.5))"></span>
+              <span style="position:absolute;bottom:20%;right:14%;width:78px;height:66px;background:linear-gradient(180deg,#243039,#1A242D);border-radius:5px 5px 3px 3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)"></span>
+              <span style="position:absolute;bottom:42%;right:14.5%;width:74px;height:9px;background:#2A3843;border-radius:3px"></span>
+              <span style="position:absolute;bottom:20%;right:32%;width:78px;height:66px;background:linear-gradient(180deg,#222E37,#18222B);border-radius:5px 5px 3px 3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)"></span>
+              <span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.028) 3px,rgba(255,255,255,.028) 4px)"></span>
+              <span style="position:absolute;inset:0;box-shadow:inset 0 0 90px rgba(0,0,0,.55)"></span>
+              <span style="position:absolute;top:10px;right:12px;background:rgba(13,20,27,.75);color:#E8F1EA;font-size:11px;font-weight:700;border-radius:6px;padding:4px 10px;font-family:'Noto Kufi Arabic',sans-serif">كاميرا نقطة النفايات</span>
+              <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.78));padding:20px 12px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span style="display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;color:#FF6B5E"><span style="width:7px;height:7px;border-radius:50%;background:#FF6B5E;animation:om-blink 1.1s infinite"></span>LIVE</span>
+                <span style="font-family:ui-monospace,monospace;font-size:10.5px;color:#C6D4CB">{{ camTs }}</span>
+                <span style="display:flex;align-items:center;gap:9px">
+                  <span style="font-family:ui-monospace,monospace;font-size:10px;font-weight:600;color:#9FD4B8">CAM3</span>
+                  <button onClick="{{ onExpand }}" title="ملء الشاشة" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:5px;color:#fff;width:24px;height:24px;cursor:pointer;font-size:11px;line-height:1;display:grid;place-items:center" style-hover="background:rgba(255,255,255,.22)">⛶</button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section data-screen-label="سجل منشأتك" style="background:#fff;border:1px solid #E3EBE5;border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(15,41,66,.06)">
+      <div style="padding:13px 18px;border-bottom:1px solid #EAF0EC;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <h2 style="margin:0;font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:15px;color:#0F2942">سجل منشأتك</h2>
+        <span style="font-size:11.5px;color:#8A99A5">آخر 6 أحداث · 5 من 6 حُلّت خلال المهلة</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:900px">
+          <thead>
+            <tr style="background:#F4F7F5">
+              <th style="text-align:right;padding:9px 18px;font-size:11px;font-weight:700;color:#5B6B78;white-space:nowrap">التاريخ</th>
+              <th style="text-align:right;padding:9px 12px;font-size:11px;font-weight:700;color:#5B6B78">البند</th>
+              <th style="text-align:right;padding:9px 12px;font-size:11px;font-weight:700;color:#5B6B78">الدليل</th>
+              <th style="text-align:right;padding:9px 12px;font-size:11px;font-weight:700;color:#5B6B78">الحالة</th>
+              <th style="text-align:right;padding:9px 18px;font-size:11px;font-weight:700;color:#5B6B78">ملاحظة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-top:1px solid #EFF4F0" style-hover="background:#F7FAF8">
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78;white-space:nowrap">اليوم 14:32</td>
+              <td style="padding:10px 12px;font-size:12px;color:#38505F"><span style="font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;color:#0F2942;background:#F0F5F2;border-radius:5px;padding:2px 7px;margin-left:7px">3/8/1/1</span>عامل دون الزي الموحد</td>
+              <td style="padding:7px 12px"><div style="width:64px;height:38px;border-radius:5px;background:linear-gradient(135deg,#1C2733,#2E3D4D);position:relative;overflow:hidden"><span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.04) 3px,rgba(255,255,255,.04) 4px)"></span><span style="position:absolute;bottom:2px;left:4px;font-family:ui-monospace,monospace;font-size:6px;color:#8A99A5">14:32:08</span></div></td>
+              <td style="padding:10px 12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#A96F14;background:#FBF3E3;border:1px solid #EFE0BE;border-radius:100px;padding:4px 11px">ضمن المهلة ⏳</span></td>
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78">ارفع لقطة التصحيح لإغلاقها فورًا</td>
+            </tr>
+            <tr style="border-top:1px solid #EFF4F0" style-hover="background:#F7FAF8">
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78;white-space:nowrap">أمس 16:05</td>
+              <td style="padding:10px 12px;font-size:12px;color:#38505F"><span style="font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;color:#0F2942;background:#F0F5F2;border-radius:5px;padding:2px 7px;margin-left:7px">6/5/1/1</span>حاويات مكشوفة</td>
+              <td style="padding:7px 12px"><div style="width:64px;height:38px;border-radius:5px;background:linear-gradient(135deg,#212B36,#33424F);position:relative;overflow:hidden"><span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.04) 3px,rgba(255,255,255,.04) 4px)"></span><span style="position:absolute;bottom:2px;left:4px;font-family:ui-monospace,monospace;font-size:6px;color:#8A99A5">16:05:18</span></div></td>
+              <td style="padding:10px 12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#165D3A;background:#EFF6F1;border:1px solid #D9E8DE;border-radius:100px;padding:4px 11px">صُحّحت ✓</span></td>
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78">قُبل تصحيحك خلال ساعتين — دون غرامة</td>
+            </tr>
+            <tr style="border-top:1px solid #EFF4F0" style-hover="background:#F7FAF8">
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78;white-space:nowrap">الأربعاء 11:14</td>
+              <td style="padding:10px 12px;font-size:12px;color:#38505F"><span style="font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;color:#0F2942;background:#F0F5F2;border-radius:5px;padding:2px 7px;margin-left:7px">10/4/1/1</span>طاولة كي مكشوفة</td>
+              <td style="padding:7px 12px"><div style="width:64px;height:38px;border-radius:5px;background:linear-gradient(135deg,#1C2733,#2E3D4D);position:relative;overflow:hidden"><span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.04) 3px,rgba(255,255,255,.04) 4px)"></span><span style="position:absolute;bottom:2px;left:4px;font-family:ui-monospace,monospace;font-size:6px;color:#8A99A5">11:14:52</span></div></td>
+              <td style="padding:10px 12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#165D3A;background:#EFF6F1;border:1px solid #D9E8DE;border-radius:100px;padding:4px 11px">صُحّحت ✓</span></td>
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78">تحقق آلي من اللقطة — أُغلقت في 38 دقيقة</td>
+            </tr>
+            <tr style="border-top:1px solid #EFF4F0" style-hover="background:#F7FAF8">
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78;white-space:nowrap">الثلاثاء 09:41</td>
+              <td style="padding:10px 12px;font-size:12px;color:#38505F"><span style="font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;color:#0F2942;background:#F0F5F2;border-radius:5px;padding:2px 7px;margin-left:7px">1/4/1/1</span>ملابس على الأرضية</td>
+              <td style="padding:7px 12px"><div style="width:64px;height:38px;border-radius:5px;background:linear-gradient(135deg,#212B36,#33424F);position:relative;overflow:hidden"><span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.04) 3px,rgba(255,255,255,.04) 4px)"></span><span style="position:absolute;bottom:2px;left:4px;font-family:ui-monospace,monospace;font-size:6px;color:#8A99A5">09:41:26</span></div></td>
+              <td style="padding:10px 12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#165D3A;background:#EFF6F1;border:1px solid #D9E8DE;border-radius:100px;padding:4px 11px">صُحّحت ✓</span></td>
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78">قُبل تصحيحك من المراجعة البشرية</td>
+            </tr>
+            <tr style="border-top:1px solid #EFF4F0" style-hover="background:#F7FAF8">
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78;white-space:nowrap">الأحد 13:07</td>
+              <td style="padding:10px 12px;font-size:12px;color:#38505F"><span style="font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;color:#0F2942;background:#F0F5F2;border-radius:5px;padding:2px 7px;margin-left:7px">7/8/1/1</span>تناول مشروبات بموقع العمل</td>
+              <td style="padding:7px 12px"><div style="width:64px;height:38px;border-radius:5px;background:linear-gradient(135deg,#1C2733,#2E3D4D);position:relative;overflow:hidden"><span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.04) 3px,rgba(255,255,255,.04) 4px)"></span><span style="position:absolute;bottom:2px;left:4px;font-family:ui-monospace,monospace;font-size:6px;color:#8A99A5">13:07:44</span></div></td>
+              <td style="padding:10px 12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#38505F;background:#EEF2F0;border:1px solid #DDE6E0;border-radius:100px;padding:4px 11px">أُغلقت آليًا</span></td>
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78">زال السبب قبل انتهاء التحقق الدلالي</td>
+            </tr>
+            <tr style="border-top:1px solid #EFF4F0" style-hover="background:#F7FAF8">
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78;white-space:nowrap">السبت 10:22</td>
+              <td style="padding:10px 12px;font-size:12px;color:#38505F"><span style="font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;color:#0F2942;background:#F0F5F2;border-radius:5px;padding:2px 7px;margin-left:7px">3/8/1/1</span>عامل دون الزي الموحد</td>
+              <td style="padding:7px 12px"><div style="width:64px;height:38px;border-radius:5px;background:linear-gradient(135deg,#212B36,#33424F);position:relative;overflow:hidden"><span style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.04) 3px,rgba(255,255,255,.04) 4px)"></span><span style="position:absolute;bottom:2px;left:4px;font-family:ui-monospace,monospace;font-size:6px;color:#8A99A5">10:22:31</span></div></td>
+              <td style="padding:10px 12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#165D3A;background:#EFF6F1;border:1px solid #D9E8DE;border-radius:100px;padding:4px 11px">صُحّحت ✓</span></td>
+              <td style="padding:10px 18px;font-size:11.5px;color:#5B6B78">أُغلقت في 51 دقيقة — دون غرامة</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer data-screen-label="الشريط السفلي" style="background:#fff;border-top:1px solid #E3EBE5;margin-top:auto">
+    <div style="max-width:1560px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div style="width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#1E7248,#0B3320);border:1.5px solid #B8934A;display:grid;place-items:center;flex:none">
+          <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:8px;color:#F3E7CC">رصد</span>
+        </div>
+        <span style="font-size:11.5px;color:#5B6B78">منشأتك ضمن المنظومة الوطنية لرصد الامتثال · جميع الأدلة موقّعة رقميًا</span>
+      </div>
+      <span style="font-size:11.5px;color:#5B6B78">للدعم: <span dir="ltr" style="font-family:ui-monospace,monospace;font-weight:700;color:#165D3A">920XXXXXX</span></span>
+    </div>
+  </footer>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;bottom:26px;left:26px;z-index:2000;background:#0F2942;color:#fff;font-size:12.5px;font-weight:600;border-radius:10px;padding:12px 18px;box-shadow:0 8px 26px rgba(15,41,66,.35);animation:om-in .3s ease">{{ toast }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1560}}">
+class Component extends DCLogic {
+  state = { timeStr: '', camTs: '', cdStr: '31:42:15', cdPct: 66, toast: '' };
+  cd = 31 * 3600 + 42 * 60 + 15;
+  total = 48 * 3600;
+
+  fmt2(n) { return String(n).padStart(2, '0'); }
+  fmtCD(s) { return this.fmt2(Math.floor(s / 3600)) + ':' + this.fmt2(Math.floor((s % 3600) / 60)) + ':' + this.fmt2(s % 60); }
+
+  componentDidMount() {
+    const upd = () => {
+      const d = new Date();
+      this.cd = Math.max(0, this.cd - 1);
+      this.setState({
+        timeStr: d.toLocaleTimeString('en-GB'),
+        camTs: '2026-07-11 ' + d.toLocaleTimeString('en-GB'),
+        cdStr: this.fmtCD(this.cd),
+        cdPct: Math.round(this.cd / this.total * 100)
+      });
+    };
+    upd();
+    this.tick = setInterval(upd, 1000);
+  }
+
+  componentWillUnmount() { clearInterval(this.tick); clearTimeout(this.toastT); }
+
+  showToast(msg) {
+    clearTimeout(this.toastT);
+    this.setState({ toast: msg });
+    this.toastT = setTimeout(() => this.setState({ toast: '' }), 3000);
+  }
+
+  renderVals() {
+    return {
+      timeStr: this.state.timeStr,
+      camTs: this.state.camTs,
+      cdStr: this.state.cdStr,
+      cdPct: this.state.cdPct,
+      toast: this.state.toast,
+      onUpload: () => this.showToast('افتح كاميرا جوالك والتقط لقطة التصحيح — سيتحقق النظام آليًا خلال دقائق'),
+      onReview: () => this.showToast('أُرسل طلب المراجعة البشرية — سيصلك الرد خلال 4 ساعات عمل'),
+      onBell: () => this.showToast('لديك إشعار واحد غير مقروء — مخالفة الزي الموحد رُصدت اليوم 14:32'),
+      onExpand: () => this.showToast('عرض الكاميرا بملء الشاشة (نموذج أولي)')
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>منصة رصد الامتثال البلدي · محفظة الرُخص — لوحة الكفيل</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700;800&amp;family=Noto+Sans+Arabic:wght@400;500;600;700&amp;display=swap">
+<style>
+  body{margin:0;background:#F4F7F5;font-family:'Noto Sans Arabic',sans-serif;color:#0F2942;-webkit-font-smoothing:antialiased}
+  a{color:#165D3A}a:hover{color:#0E3D26}
+  @keyframes om-blink{0%,100%{opacity:1}50%{opacity:.25}}
+  @keyframes om-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+</style>
+<style>
+  button{transition:box-shadow .15s ease, background .15s ease, transform .12s ease}
+  button:hover{box-shadow:0 3px 12px rgba(15,41,66,.14)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+<div dir="rtl" style="min-height:100vh;background:#F4F7F5;display:flex;flex-direction:column">
+
+  <header data-screen-label="الشريط العلوي" style="background:linear-gradient(135deg,#0B3320 0%,#165D3A 70%,#1B6B44 100%);border-bottom:3px solid #B8934A;color:#fff">
+    <div style="max-width:1440px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#1E7248,#0B3320);border:2px solid #B8934A;display:grid;place-items:center;flex:none">
+          <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:11.5px;color:#F3E7CC">رصد</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <h1 style="margin:0;font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:17.5px;color:#fff">منصة رصد الامتثال البلدي <span style="color:#B8934A;font-weight:600">·</span> محفظة الرُخص</h1>
+          <span style="font-size:11px;color:#C9DCD0">لوحة الكفيل — نظرة قائد الأعمال</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:2px;text-align:left;border-left:1px solid rgba(255,255,255,.18);padding-left:18px">
+          <span style="font-size:12.5px;font-weight:700;color:#E8F1EA">أ. صالح الحربي</span>
+          <span style="font-size:10.5px;color:#AFC8B7">كفيل — صاحب الرخصة النظامي</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;text-align:left;border-left:1px solid rgba(255,255,255,.18);padding-left:18px">
+          <span style="font-size:11.5px;font-weight:600;color:#E8F1EA">الجمعة 26 محرم 1448هـ · 11 يوليو 2026م</span>
+          <span style="font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:600;letter-spacing:1px;color:#fff"><span id="dcTime"></span></span>
+        </div>
+        <button onclick="dcToast('لا إشعارات جديدة — كل شيء تحت السيطرة')" title="الإشعارات" style="width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);color:#fff;font-size:17px;cursor:pointer;display:grid;place-items:center">🔔</button>
+      </div>
+    </div>
+  </header>
+
+  <main style="max-width:1440px;margin:0 auto;width:100%;box-sizing:border-box;padding:20px 24px;display:flex;flex-direction:column;gap:18px;flex:1">
+
+    <section data-screen-label="صحة محفظتك" style="background:linear-gradient(140deg,#FFFFFF 0%,#F2F8F4 55%,#EAF4EE 100%);border:1.5px solid #C9DFD1;border-radius:16px;padding:26px 34px;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap;box-shadow:0 3px 16px rgba(22,93,58,.10)">
+      <div style="display:flex;align-items:center;gap:22px">
+        <div style="position:relative;width:128px;height:128px;flex:none">
+          <svg width="128" height="128" viewBox="0 0 92 92" style="transform:rotate(-90deg)">
+            <circle cx="46" cy="46" r="40" fill="none" stroke="#DCE9E0" stroke-width="8"></circle>
+            <circle cx="46" cy="46" r="40" fill="none" stroke="#165D3A" stroke-width="8" stroke-linecap="round" stroke-dasharray="236.2 251.3"></circle>
+          </svg>
+          <span style="position:absolute;inset:0;display:grid;place-items:center;font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:28px;color:#165D3A">94%</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <span style="font-size:13px;font-weight:700;color:#4E7A61">مؤشر امتثال المحفظة</span>
+          <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:46px;color:#165D3A;line-height:1">94%</span>
+          <span style="font-size:11.5px;color:#4E7A61">▲ +2 نقطة هذا الشهر — أداء ممتاز</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:0 10px">
+        <div style="display:flex;align-items:center;gap:11px">
+          <span style="width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #D9E8DE;display:grid;place-items:center;font-size:16px;flex:none">🗂</span>
+          <span style="font-size:14px;font-weight:700;color:#0F2942">3 رُخص بلدية سارية</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px">
+          <span style="width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #D9E8DE;display:grid;place-items:center;font-size:16px;flex:none">📡</span>
+          <span style="font-size:14px;font-weight:700;color:#0F2942">3 فروع متصلة بالمنظومة</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px">
+          <span style="width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid #D9E8DE;display:grid;place-items:center;font-size:16px;flex:none">🛡</span>
+          <span style="font-size:14px;font-weight:700;color:#165D3A">0 تصعيد نشط</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex:none">
+        <div style="position:relative;width:148px;height:148px;border-radius:50%;background:radial-gradient(circle at 38% 30%,#F6EBD2,#EBD9AE);border:2.5px solid #B8934A;display:grid;place-items:center;box-shadow:0 4px 18px rgba(184,147,74,.3)">
+          <div style="width:124px;height:124px;border-radius:50%;border:1.5px dashed #A5843F;display:grid;place-items:center">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;padding:0 12px">
+              <span style="font-size:19px">🛡</span>
+              <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:13.5px;color:#6B5320;line-height:1.4">سجل نظيف</span>
+              <span style="font-size:10px;font-weight:700;color:#8A7440;line-height:1.4">23 يومًا بلا تصعيد</span>
+            </div>
+          </div>
+        </div>
+        <span style="font-size:10px;color:#8A7440">شارة معتمدة من المركز الوطني</span>
+      </div>
+    </section>
+
+    <section data-screen-label="فروعك" style="display:flex;flex-direction:column;gap:12px">
+      <h2 style="margin:0;font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:16px;color:#0F2942">فروعك</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px">
+
+        <div style="background:#fff;border:1px solid #E3EBE5;border-radius:13px;padding:18px 20px;display:flex;flex-direction:column;gap:13px;box-shadow:0 1px 4px rgba(15,41,66,.05)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:15px;color:#0F2942">مغسلة النخيل 2 — الملقا</span>
+              <span style="font-size:11px;color:#8A99A5">رخصة <span style="font-family:ui-monospace,monospace;font-weight:700;color:#38505F">40119344</span></span>
+            </div>
+            <div style="position:relative;width:60px;height:60px;flex:none">
+              <svg width="60" height="60" viewBox="0 0 92 92" style="transform:rotate(-90deg)">
+                <circle cx="46" cy="46" r="40" fill="none" stroke="#DCE9E0" stroke-width="10"></circle>
+                <circle cx="46" cy="46" r="40" fill="none" stroke="#165D3A" stroke-width="10" stroke-linecap="round" stroke-dasharray="236.2 251.3"></circle>
+              </svg>
+              <span style="position:absolute;inset:0;display:grid;place-items:center;font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:13px;color:#165D3A">94%</span>
+            </div>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#165D3A;background:#EFF6F1;border:1px solid #D9E8DE;border-radius:100px;padding:6px 13px;align-self:flex-start">ملتزم ✓</span>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #EFF4F0;padding-top:12px">
+            <span style="font-size:11px;color:#8A99A5">آخر حدث: قبل ساعتين — تصحيح مقبول</span>
+            <button onclick="dcToast('جارٍ فتح تفاصيل الفرع والبث المباشر…')" style="font-family:'Noto Sans Arabic',sans-serif;font-size:11.5px;font-weight:700;color:#165D3A;background:#fff;border:1px solid #C9DFD1;border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap">عرض التفاصيل والبث</button>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E3EBE5;border-radius:13px;padding:18px 20px;display:flex;flex-direction:column;gap:13px;box-shadow:0 1px 4px rgba(15,41,66,.05)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:15px;color:#0F2942">مغسلة الوسام — السليمانية</span>
+              <span style="font-size:11px;color:#8A99A5">رخصة <span style="font-family:ui-monospace,monospace;font-weight:700;color:#38505F">40116233</span></span>
+            </div>
+            <div style="position:relative;width:60px;height:60px;flex:none">
+              <svg width="60" height="60" viewBox="0 0 92 92" style="transform:rotate(-90deg)">
+                <circle cx="46" cy="46" r="40" fill="none" stroke="#DCE9E0" stroke-width="10"></circle>
+                <circle cx="46" cy="46" r="40" fill="none" stroke="#165D3A" stroke-width="10" stroke-linecap="round" stroke-dasharray="223.7 251.3"></circle>
+              </svg>
+              <span style="position:absolute;inset:0;display:grid;place-items:center;font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:13px;color:#165D3A">89%</span>
+            </div>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#165D3A;background:#EFF6F1;border:1px solid #D9E8DE;border-radius:100px;padding:6px 13px;align-self:flex-start">ملتزم ✓</span>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #EFF4F0;padding-top:12px">
+            <span style="font-size:11px;color:#8A99A5">آخر حدث: أمس — رصد سليم متواصل</span>
+            <button onclick="dcToast('جارٍ فتح تفاصيل الفرع والبث المباشر…')" style="font-family:'Noto Sans Arabic',sans-serif;font-size:11.5px;font-weight:700;color:#165D3A;background:#fff;border:1px solid #C9DFD1;border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap">عرض التفاصيل والبث</button>
+          </div>
+        </div>
+
+        <div style="background:linear-gradient(180deg,#FFFFFF,#FEFBF3);border:1.5px solid #E8CE96;border-radius:13px;padding:18px 20px;display:flex;flex-direction:column;gap:13px;box-shadow:0 2px 10px rgba(224,152,44,.10)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:15px;color:#0F2942">مغسلة النخيل — النسيم</span>
+              <span style="font-size:11px;color:#8A99A5">رخصة <span style="font-family:ui-monospace,monospace;font-weight:700;color:#38505F">40118762</span></span>
+            </div>
+            <div style="position:relative;width:60px;height:60px;flex:none">
+              <svg width="60" height="60" viewBox="0 0 92 92" style="transform:rotate(-90deg)">
+                <circle cx="46" cy="46" r="40" fill="none" stroke="#F0E5CF" stroke-width="10"></circle>
+                <circle cx="46" cy="46" r="40" fill="none" stroke="#E0982C" stroke-width="10" stroke-linecap="round" stroke-dasharray="191 251.3"></circle>
+              </svg>
+              <span style="position:absolute;inset:0;display:grid;place-items:center;font-family:'Noto Kufi Arabic',sans-serif;font-weight:800;font-size:13px;color:#A96F14">76%</span>
+            </div>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#A96F14;background:#FBF3E3;border:1px solid #EFE0BE;border-radius:100px;padding:6px 13px;align-self:flex-start">مخالفة ضمن مهلة التصحيح ⏳ — المشغّل يعالجها</span>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #F5ECD8;padding-top:12px">
+            <span style="font-size:11px;color:#8A99A5">آخر حدث: اليوم 14:32 — تحت السيطرة</span>
+            <button onclick="dcToast('جارٍ فتح تفاصيل الفرع والبث المباشر…')" style="font-family:'Noto Sans Arabic',sans-serif;font-size:11.5px;font-weight:700;color:#A96F14;background:#fff;border:1px solid #E8CE96;border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap">عرض التفاصيل والبث</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section data-screen-label="التقرير والأحداث" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px">
+
+      <div style="background:#fff;border:1px solid #E3EBE5;border-radius:13px;overflow:hidden;box-shadow:0 1px 4px rgba(15,41,66,.05);display:flex;flex-direction:column">
+        <div style="padding:12px 18px;border-bottom:1px solid #EAF0EC;background:#F7FAF8">
+          <h2 style="margin:0;font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:14px;color:#0F2942">تقريرك الأسبوعي</h2>
+        </div>
+        <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;flex:1">
+          <div style="border:1px solid #E8E2D2;border-radius:10px;background:linear-gradient(180deg,#FFFEFA,#FBF8F0);padding:16px 18px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
+              <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:13.5px;color:#0F2942">تقرير الامتثال الأسبوعي — الخميس 25 محرم 1448هـ</span>
+              <p style="margin:0;font-size:12px;color:#5B6B78;line-height:1.8">محفظتك حافظت على مستوى امتثال 94% هذا الأسبوع. حالتان صُحّحتا خلال المهلة دون غرامات، ولا يوجد أي تصعيد يمس رُخصك.</p>
+            </div>
+            <div style="width:58px;height:58px;border-radius:50%;background:radial-gradient(circle at 38% 30%,#F6EBD2,#EBD9AE);border:1.5px solid #B8934A;display:grid;place-items:center;flex:none;box-shadow:0 2px 8px rgba(184,147,74,.25)">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:0">
+                <span style="font-size:13px;color:#6B5320">✓</span>
+                <span style="font-size:6.5px;font-weight:700;color:#8A7440">موقّع رقميًا</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:auto">
+            <button onclick="dcToast('جارٍ فتح تقرير الامتثال الأسبوعي…')" style="font-family:'Noto Sans Arabic',sans-serif;font-size:12.5px;font-weight:700;color:#fff;background:#165D3A;border:1px solid #0E3D26;border-radius:9px;padding:11px 20px;cursor:pointer">عرض التقرير 📄</button>
+            <button onclick="dcToast('جارٍ تجهيز ملف PDF الموقّع رقميًا للتحميل…')" style="font-family:'Noto Sans Arabic',sans-serif;font-size:12.5px;font-weight:700;color:#6B5320;background:#fff;border:1.5px solid #B8934A;border-radius:9px;padding:10px 20px;cursor:pointer">تحميل PDF موقّع</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #E3EBE5;border-radius:13px;overflow:hidden;box-shadow:0 1px 4px rgba(15,41,66,.05);display:flex;flex-direction:column">
+        <div style="padding:12px 18px;border-bottom:1px solid #EAF0EC;background:#F7FAF8">
+          <h2 style="margin:0;font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:14px;color:#0F2942">آخر الأحداث الجوهرية</h2>
+        </div>
+        <div style="display:flex;flex-direction:column;flex:1">
+          <div style="display:flex;gap:12px;padding:12px 18px;border-bottom:1px solid #EFF4F0;align-items:flex-start">
+            <span style="width:30px;height:30px;border-radius:9px;background:#EFF6F1;border:1px solid #D9E8DE;display:grid;place-items:center;font-size:13px;flex:none">✓</span>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:12.5px;font-weight:700;color:#0F2942">فرع الملقا: تصحيح مقبول وأُغلقت الحالة</span>
+              <span style="font-size:10.5px;color:#8A99A5">اليوم 12:10 · دون غرامة</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;padding:12px 18px;border-bottom:1px solid #EFF4F0;align-items:flex-start">
+            <span style="width:30px;height:30px;border-radius:9px;background:#FBF3E3;border:1px solid #EFE0BE;display:grid;place-items:center;font-size:13px;flex:none">⏳</span>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:12.5px;font-weight:700;color:#0F2942">فرع النسيم: مخالفة زي — المشغّل ضمن المهلة</span>
+              <span style="font-size:10.5px;color:#8A99A5">اليوم 14:32 · لا إجراء مطلوب منك</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;padding:12px 18px;border-bottom:1px solid #EFF4F0;align-items:flex-start">
+            <span style="width:30px;height:30px;border-radius:9px;background:#F0F5F2;border:1px solid #E3EBE5;display:grid;place-items:center;font-size:13px;flex:none">📄</span>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:12.5px;font-weight:700;color:#0F2942">التقرير الأسبوعي صدر ووُقّع رقميًا</span>
+              <span style="font-size:10.5px;color:#8A99A5">الخميس 09:00</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;padding:12px 18px;align-items:flex-start">
+            <span style="width:30px;height:30px;border-radius:9px;background:#EFF6F1;border:1px solid #D9E8DE;display:grid;place-items:center;font-size:13px;flex:none">🛡</span>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:12.5px;font-weight:700;color:#0F2942">اكتمل أسبوع كامل بلا أي تصعيد</span>
+              <span style="font-size:10.5px;color:#8A99A5">الأربعاء · سلسلتك: 23 يومًا</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section data-screen-label="حماية رخصتك" style="background:linear-gradient(180deg,#FFFFFF,#F7FAF8);border:1px solid #E3EBE5;border-radius:13px;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+      <span style="font-family:'Noto Kufi Arabic',sans-serif;font-weight:700;font-size:13.5px;color:#165D3A;white-space:nowrap">حماية رخصتك تعمل</span>
+      <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;color:#38505F"><span style="width:32px;height:32px;border-radius:50%;background:#EFF6F1;border:1px solid #D9E8DE;display:grid;place-items:center;font-size:13px">📡</span>رصد مستمر 24/7</span>
+        <span style="display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;color:#38505F"><span style="width:32px;height:32px;border-radius:50%;background:#FCF8EF;border:1px solid #EFE0BE;display:grid;place-items:center;font-size:13px">🔏</span>أدلة موقّعة رقميًا لا تقبل الطعن</span>
+        <span style="display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;color:#38505F"><span style="width:32px;height:32px;border-radius:50%;background:#EFF6F1;border:1px solid #D9E8DE;display:grid;place-items:center;font-size:13px">⚡</span>تنبيه فوري قبل أي تصعيد يمس الرخصة</span>
+      </div>
+      <span style="font-size:11.5px;color:#8A99A5">للدعم: <span dir="ltr" style="font-family:ui-monospace,monospace;font-weight:700;color:#165D3A">920XXXXXX</span></span>
+    </section>
+  </main>
+
+  <div id="dcToast" style="position:fixed;bottom:26px;left:26px;z-index:2000;background:#0F2942;color:#fff;font-size:12.5px;font-weight:600;border-radius:10px;padding:12px 18px;box-shadow:0 8px 26px rgba(15,41,66,.35);display:none"></div>
+</div>
+<script>
+  function _p(n){return String(n).padStart(2,'0')}
+  function _tick(){var e=document.getElementById('dcTime');if(e){var d=new Date();e.textContent=_p(d.getHours())+':'+_p(d.getMinutes())+':'+_p(d.getSeconds())}}
+  _tick();setInterval(_tick,1000);
+  var _tt;
+  function dcToast(m){var e=document.getElementById('dcToast');if(!e)return;e.textContent=m;e.style.display='block';clearTimeout(_tt);_tt=setTimeout(function(){e.style.display='none'},3000)}
+</script>
+</body>
+</html>
