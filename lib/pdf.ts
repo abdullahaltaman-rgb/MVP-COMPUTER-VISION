@@ -74,7 +74,7 @@ export async function generateWeeklyPdf(input: WeeklyPdfInput): Promise<Buffer> 
     font: FONT_SANS,
     info: {
       Title: `تقرير أسبوعي — ${input.branchNameAr}`,
-      Author: 'منظومة أبيض فيجن v1.0',
+      Author: 'منصة رصد الامتثال البلدي',
     },
   });
   doc.registerFont('sans', FONT_SANS);
@@ -94,7 +94,7 @@ export async function generateWeeklyPdf(input: WeeklyPdfInput): Promise<Buffer> 
   // الترويسة
   doc.rect(0, 0, doc.page.width, 90).fill(navy);
   doc.fill('#FFFFFF').font('kufi').fontSize(18);
-  doc.text(rtl('التقرير الأسبوعي للامتثال — منظومة أبيض فيجن'), 48, 26, { width: W, align: 'right' });
+  doc.text(rtl('التقرير الأسبوعي للامتثال — منصة رصد الامتثال البلدي'), 48, 26, { width: W, align: 'right' });
   doc.font('sans').fontSize(10).fillOpacity(0.85);
   doc.text(rtl(`${input.branchNameAr} · رخصة ${input.licenseNo} · ${input.branchCode}`), 48, 56, {
     width: W,

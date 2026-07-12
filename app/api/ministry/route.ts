@@ -23,14 +23,30 @@ export async function GET() {
     prisma.opsDigest.findMany({ orderBy: { date: 'desc' }, take: 14 }),
   ]);
 
-  const active = cases.filter((c) => ['new', 'notified', 'in_grace'].includes(c.status)).length;
+  const ACTIVE = ['new', 'notified', 'in_grace'];
+  const active = cases.filter((c) => ACTIVE.includes(c.status)).length;
   const corrected = cases.filter((c) => c.status === 'corrected').length;
   const escalated = cases.filter((c) => c.status === 'escalated').length;
+
+  // ── تجميع حالة الامتثال لكل فرع (إضافة غير كاسرة — تغذّي خريطة الأمانة) ──
+  // مُصعّدة ← أحمر | نشطة ضمن المهلة ← كهرماني | غير ذلك ← أخضر
+  const branchStats = branches.map((b) => {
+    const own = cases.filter((c) => c.branchId === b.id);
+    const a = own.filter((c) => ACTIVE.includes(c.status)).length;
+    const e = own.filter((c) => c.status === 'escalated').length;
+    return {
+      branchId: b.id,
+      activeCases: a,
+      escalatedCases: e,
+      compliance: e > 0 ? 'alert' : a > 0 ? 'warn' : 'ok',
+    };
+  });
 
   return NextResponse.json({
     branches,
     cases,
     stats: { total: cases.length, active, corrected, escalated },
+    branchStats,
     chainRoot: root,
     digests,
   });

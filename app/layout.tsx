@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Noto_Kufi_Arabic, Noto_Sans_Arabic } from 'next/font/google';
+import 'leaflet/dist/leaflet.css';
 import './globals.css';
 
 const kufi = Noto_Kufi_Arabic({
@@ -17,14 +18,14 @@ const naskh = Noto_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: 'أبيض فيجن — الرصد الآلي للامتثال',
+  title: 'منصة رصد الامتثال البلدي',
   description:
-    'منظومة أبيض فيجن v1.0 — رصد امتثال حي لفرع المغسلة (أمانة منطقة الرياض): كاميرات RTSP، سلسلة عهدة رقمية، ومهل تصحيح موثّقة.',
+    'منصة رصد الامتثال البلدي — رصد امتثال حي لقطاع المغاسل (أمانة منطقة الرياض): كاميرات RTSP، سلسلة عهدة رقمية، ومهل تصحيح موثّقة.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'أبيض فيجن',
+    title: 'منصة رصد الامتثال البلدي',
   },
 };
 

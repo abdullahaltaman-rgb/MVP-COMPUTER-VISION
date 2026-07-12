@@ -43,12 +43,12 @@ export default function LoginClient() {
     <div className="min-h-screen bg-navy grid place-items-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-white/10 grid place-items-center font-kufi font-bold text-3xl text-gold mx-auto mb-3">
-            أب
+          <div className="w-16 h-16 rounded-2xl bg-white/10 grid place-items-center font-kufi font-bold text-2xl text-gold mx-auto mb-3">
+            رصد
           </div>
-          <h1 className="font-kufi font-bold text-white text-xl">أبيض فيجن</h1>
+          <h1 className="font-kufi font-bold text-white text-xl">منصة رصد الامتثال البلدي</h1>
           <p className="text-white/60 text-sm mt-1">
-            منظومة الرصد الآلي للامتثال — v1.0 إنتاج
+            المركز الوطني لرصد الامتثال — قطاع المغاسل
           </p>
         </div>
         <form onSubmit={submit} className="card p-5 space-y-4">

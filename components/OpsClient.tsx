@@ -1,17 +1,19 @@
 'use client';
 
-// كونسول العمليات: طابور المراجعة، المعايرة (بوابة الأسبوع الثاني)، صحة الأجهزة،
-// ضبط العتبات والجداول، SILENT_MODE، سجل التدقيق.
-import { useCallback, useEffect, useState } from 'react';
-import AppShell from './AppShell';
-import CalibrationChart from './CalibrationChart';
-import { ConfidenceBar, KpiCard } from './ui';
+// ── شاشة التفتيش الرقمي عن بُعد — منصة رصد الامتثال البلدي ──
+// مطابقة للتصميم المعتمد design/inspector.html.
+// عقد الطابور محفوظ حرفيًا: POST /api/ops/review بـ {eventId, action:'approve'|'reject'}.
+// أدوات غرفة العمليات (المعايرة/الصحة/الإعدادات/التدقيق) خلف تبويب ثانوي — بلا أي فقد وظيفي.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import OpsTools from './ops/OpsTools';
+import LiveStream from './LiveStream';
 import { formatDateTime } from '@/lib/format';
-import { ITEM_MAP, ZONES_AR, CAMERAS_AR } from '@/lib/catalog';
+import { ITEM_MAP, CAMERAS_AR } from '@/lib/catalog';
+import { normalizeDistrict } from '@/lib/geo';
 
-type Tab = 'queue' | 'calibration' | 'health' | 'config' | 'audit';
-
-interface OpsData {
+export interface OpsData {
   queue: {
     id: string; branchId: string; cameraKey: string; itemCode: string; confidence: number;
     source: string; zonesHit: string[]; noteAr: string | null; silent: boolean;
@@ -21,12 +23,19 @@ interface OpsData {
     id: string; itemCode: string; cameraKey: string; confidence: number;
     decision: string; status: string; occurredAt: string;
   }[];
+  cases: {
+    id: string; refNo: string; branchId: string; itemCode: string; status: string;
+    confidence: number; potentialFine: number; detectedAt: string; graceDeadline: string;
+  }[];
   devices: {
     id: string; name: string; branchNameAr: string; version: string | null;
     lastSeenAt: string | null; online: boolean;
     cameras: { key: string; nameAr: string; online: boolean; fps: number | null; lastSeenAt: string | null }[];
   }[];
-  branches: { id: string; code: string; nameAr: string; silentMode: boolean }[];
+  branches: {
+    id: string; code: string; nameAr: string; silentMode: boolean;
+    districtAr: string; licenseNo: string; score: number;
+  }[];
   rules: {
     itemCode: string; enabled: boolean; mode: string; autoThreshold: number;
     reviewThreshold: number; confirmWindowSec: number; cooldownSec: number;
@@ -43,25 +52,31 @@ interface OpsData {
   notifications: { id: string; audience: string; type: string; titleAr: string; status: string; at: string }[];
 }
 
-const ACTION_AR: Record<string, string> = {
-  login: 'تسجيل دخول',
-  review_approve: 'اعتماد رصدة',
-  review_reject: 'استبعاد رصدة',
-  calibration_label: 'تصنيف معايرة',
-  rule_config_update: 'تحديث إعدادات بند',
-  silent_mode_on: 'تفعيل الوضع الصامت',
-  silent_mode_off: 'إيقاف الوضع الصامت',
-  correction_accepted: 'قبول تصحيح',
-  correction_recheck_failed: 'فشل إعادة كشف',
-  evidence_purge_90d: 'إتلاف أدلة (90 يومًا)',
-  records_purge_2y: 'إتلاف سجلات (سنتان)',
+const CASE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  new: { label: 'جديدة', color: '#0F2942', bg: '#E8EEF5' },
+  notified: { label: 'مُبلّغة', color: '#0F2942', bg: '#E8EEF5' },
+  in_grace: { label: 'ضمن المهلة ⏳', color: '#A96F14', bg: '#FBF3E3' },
+  corrected: { label: 'صُحّحت ✓', color: '#165D3A', bg: '#EFF6F1' },
+  escalated: { label: 'غرامة صدرت', color: '#CE4A3C', bg: '#FBEAE7' },
+};
+
+/** ترتيب العرض: كاميرا المعالجة هي الرئيسة (الأكبر) ثم البقية */
+const CAMERA_ORDER = ['cam_processing', 'cam_reception', 'cam_waste'];
+const CAMERA_CODE: Record<string, string> = {
+  cam_processing: 'CAM1',
+  cam_reception: 'CAM2',
+  cam_waste: 'CAM3',
 };
 
 export default function OpsClient({ nameAr }: { nameAr: string }) {
+  const router = useRouter();
   const [data, setData] = useState<OpsData | null>(null);
-  const [tab, setTab] = useState<Tab>('queue');
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [clock, setClock] = useState('');
+  const [showTools, setShowTools] = useState(false);
+  const [modalEventId, setModalEventId] = useState<string | null>(null);
+  const toastT = useRef<ReturnType<typeof setTimeout>>();
 
   const load = useCallback(async () => {
     const res = await fetch('/api/ops', { cache: 'no-store' });
@@ -74,443 +89,658 @@ export default function OpsClient({ nameAr }: { nameAr: string }) {
     return () => clearInterval(t);
   }, [load]);
 
+  useEffect(() => {
+    const tick = () => setClock(new Date().toLocaleTimeString('en-GB'));
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }, []);
+
+  useEffect(() => () => clearTimeout(toastT.current), []);
+
   function flash(msg: string) {
+    clearTimeout(toastT.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 3500);
+    toastT.current = setTimeout(() => setToast(null), 3500);
   }
 
-  async function post(url: string, body: unknown, okMsg: string) {
-    setBusy(url + JSON.stringify(body));
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const j = await res.json();
-      if (!res.ok) {
-        flash(j.detail || j.error || 'فشلت العملية');
-        return false;
+  // ── عقد الطابور — لم يتغيّر حرفًا ──
+  const post = useCallback(
+    async (url: string, body: unknown, okMsg: string) => {
+      setBusy(url + JSON.stringify(body));
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const j = await res.json();
+        if (!res.ok) {
+          flash(j.detail || j.error || 'فشلت العملية');
+          return false;
+        }
+        flash(okMsg);
+        await load();
+        return true;
+      } finally {
+        setBusy(null);
       }
-      flash(okMsg);
-      await load();
-      return true;
-    } finally {
-      setBusy(null);
-    }
+    },
+    [load],
+  );
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.replace('/');
+  }
+
+  const branch = data?.branches[0];
+  const current = data?.queue[0] ?? null; // الرصدة قيد التفتيش
+  const modalEvent = useMemo(
+    () => data?.queue.find((e) => e.id === modalEventId) ?? null,
+    [data, modalEventId],
+  );
+
+  const branchCases = useMemo(
+    () => (data?.cases ?? []).filter((c) => !branch || c.branchId === branch.id),
+    [data, branch],
+  );
+
+  /** بنود الرقابة النشطة: مخالفة إن كان لها رصدة قيد المراجعة أو حالة مفتوحة */
+  const ruleStatus = useMemo(() => {
+    const flagged = new Set<string>();
+    (data?.queue ?? []).forEach((e) => flagged.add(e.itemCode));
+    branchCases
+      .filter((c) => ['new', 'notified', 'in_grace', 'escalated'].includes(c.status))
+      .forEach((c) => flagged.add(c.itemCode));
+    return flagged;
+  }, [data, branchCases]);
+
+  const device = data?.devices[0];
+  const deviceOnline = device?.online ?? false;
+
+  /** الكاميرات الحقيقية من نبض الحافة، مرتّبة بالمعالجة أولًا */
+  const cameras = useMemo(() => {
+    const list = device?.cameras ?? [];
+    return [...list].sort(
+      (a, b) => CAMERA_ORDER.indexOf(a.key) - CAMERA_ORDER.indexOf(b.key),
+    );
+  }, [device]);
+
+  async function approve(eventId: string) {
+    const ok = await post(
+      '/api/ops/review',
+      { eventId, action: 'approve' },
+      'اعتُمد المحضر — فُتحت حالة وبدأت مهلة التصحيح 48 ساعة',
+    );
+    if (ok) setModalEventId(null);
+  }
+
+  async function reject(eventId: string) {
+    await post('/api/ops/review', { eventId, action: 'reject' }, 'استُبعدت الرصدة (إنذار كاذب)');
   }
 
   if (!data) {
     return (
-      <AppShell title="غرفة العمليات" role="ops" nameAr={nameAr}>
-        <div className="text-navy/40 py-20 text-center">جارٍ التحميل…</div>
-      </AppShell>
+      <div dir="rtl" className="min-h-screen bg-canvas grid place-items-center">
+        <div className="text-ink-faint">جارٍ التحميل…</div>
+      </div>
     );
   }
 
-  const branch = data.branches[0];
-  const cal = data.calibration;
-  const offlineDevices = data.devices.filter((d) => !d.online);
-
-  const TABS: { key: Tab; label: string; count?: number }[] = [
-    { key: 'queue', label: 'طابور المراجعة', count: data.queue.length },
-    { key: 'calibration', label: 'المعايرة', count: data.unlabeled.length },
-    { key: 'health', label: 'صحة الأجهزة', count: offlineDevices.length || undefined },
-    { key: 'config', label: 'الإعدادات' },
-    { key: 'audit', label: 'سجل التدقيق' },
-  ];
+  const item = current ? ITEM_MAP[current.itemCode] : null;
 
   return (
-    <AppShell
-      title="غرفة العمليات — أبيض فيجن"
-      role="ops"
-      nameAr={nameAr}
-      badge={
-        branch && (
-          <span className={`chip ${branch.silentMode ? 'bg-amber/20 text-amber border-amber/40' : 'bg-green/20 text-green border-green/40'}`}>
-            {branch.silentMode ? 'الوضع الصامت مفعّل' : 'الإشعارات حيّة'}
-          </span>
-        )
-      }
-    >
-      {/* تنبيه انقطاع ≥ 5 دقائق */}
-      {offlineDevices.length > 0 && (
-        <div className="card border-red/40 bg-red/5 p-4 mb-4 flex items-center gap-3">
-          <span className="rec-dot shrink-0" />
-          <div className="text-red text-sm font-bold">
-            انقطاع ≥ 5 دقائق: {offlineDevices.map((d) => `${d.name} (${d.branchNameAr})`).join('، ')}
+    <div dir="rtl" className="min-h-screen bg-canvas flex flex-col">
+      {/* ── الشريط العلوي ── */}
+      <header
+        className="text-white border-b-[3px] border-gold"
+        style={{ background: 'linear-gradient(135deg,#0B3320 0%,#165D3A 70%,#1B6B44 100%)' }}
+      >
+        <div className="max-w-[1560px] mx-auto px-6 py-2.5 flex items-center justify-between gap-5 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-[42px] h-[42px] rounded-full border-2 border-gold grid place-items-center shrink-0"
+              style={{ background: 'radial-gradient(circle at 35% 30%,#1E7248,#0B3320)' }}
+            >
+              <span className="font-kufi font-extrabold text-[11px] text-sand">رصد</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <h1 className="m-0 font-kufi font-bold text-[16.5px] text-white">
+                منصة رصد الامتثال البلدي <span className="text-gold font-semibold">·</span> التفتيش الرقمي عن بُعد
+              </h1>
+              <span className="text-[11px] text-[#C9DCD0]">أمانة منطقة الرياض — قطاع المغاسل</span>
+            </div>
           </div>
-        </div>
-      )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <KpiCard label="بانتظار المراجعة" value={data.queue.length} accent="#E0982C" />
-        <KpiCard label="أحداث مصنَّفة" value={cal.totalLabeled} />
-        <KpiCard
-          label="الدقة التراكمية"
-          value={cal.precision === null ? '—' : `${Math.round(cal.precision * 100)}%`}
-          accent={cal.precision !== null && cal.precision >= 0.9 ? '#1B7A43' : '#CE4A3C'}
-        />
-        <KpiCard
-          label="بوابة الإطلاق"
-          value={cal.gatePassed ? 'مجتازة ✓' : 'غير مجتازة'}
-          accent={cal.gatePassed ? '#1B7A43' : '#CE4A3C'}
-        />
-      </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex flex-col gap-0.5 text-left border-l border-white/20 pl-4">
+              <span className="text-xs font-bold text-[#E8F1EA]">{nameAr}</span>
+              <span className="text-[10.5px] text-[#AFC8B7]">مفتش بلدي — غرفة العمليات</span>
+            </div>
+            <div className="font-mono text-[15px] font-semibold tracking-wider text-white tnum min-w-[84px] text-center">
+              {clock || '—'}
+            </div>
 
-      <div className="flex gap-1.5 mb-4 overflow-x-auto thin-scroll">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`chip whitespace-nowrap px-4 py-2 text-sm ${
-              tab === t.key ? 'bg-navy text-white border-navy' : 'bg-white text-navy border-navy/15'
-            }`}
-          >
-            {t.label}
-            {t.count !== undefined && t.count > 0 && (
-              <span className={`tnum text-[10px] rounded-full px-1.5 ${tab === t.key ? 'bg-white/20' : 'bg-red text-white'}`}>
-                {t.count}
+            {/* الوضع الصامت — يبقى ظاهرًا وقابلًا للتبديل من الأدوات */}
+            {branch && (
+              <span
+                className={`flex items-center gap-1.5 text-[11px] font-bold rounded-full px-3 py-1.5 border ${
+                  branch.silentMode
+                    ? 'bg-amber/20 text-[#FFE2B8] border-amber/50'
+                    : 'bg-white/10 text-[#DDF2E4] border-white/25'
+                }`}
+              >
+                {branch.silentMode ? 'الوضع الصامت مفعّل' : 'الإشعارات حيّة'}
               </span>
             )}
-          </button>
-        ))}
-      </div>
 
-      {/* ── طابور المراجعة ── */}
-      {tab === 'queue' && (
-        <div className="space-y-3">
-          {data.queue.length === 0 && (
-            <div className="card p-8 text-center text-navy/40">لا رصدات بانتظار المراجعة ✓</div>
-          )}
-          {data.queue.map((e) => (
-            <div key={e.id} className="card p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* إطار الدليل */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/events/${e.id}/frame`}
-                  alt="إطار الدليل"
-                  className="w-full sm:w-56 h-36 object-cover rounded-lg bg-navy/5 border border-navy/10"
-                  loading="lazy"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="chip bg-navy/10 text-navy border-navy/15 tnum">بند {e.itemCode}</span>
-                    {e.silent && <span className="chip bg-amber/15 text-amber border-amber/30">صامت</span>}
-                    {e.source === 'semantic' && (
-                      <span className="chip bg-gold/15 text-gold border-gold/30">فحص مجدول</span>
+            <span
+              className="flex items-center gap-[7px] rounded-full px-3 py-1.5 text-[11.5px] font-bold"
+              style={{ background: 'rgba(206,74,60,.18)', border: '1px solid rgba(255,120,105,.5)', color: '#FFD9D4' }}
+            >
+              <span
+                className="w-2 h-2 rounded-full bg-[#FF6B5E]"
+                style={{ boxShadow: '0 0 8px #FF6B5E', animation: 'om-blink 1.2s infinite' }}
+              />
+              جلسة تفتيش نشطة · REC
+            </span>
+
+            <button
+              onClick={() => setShowTools((v) => !v)}
+              className="text-[11.5px] font-bold text-white border border-white/30 rounded-lg px-3 py-1.5 hover:bg-white/10"
+            >
+              {showTools ? '← شاشة التفتيش' : 'أدوات غرفة العمليات'}
+              {!showTools && data.queue.length > 0 && (
+                <span className="mr-1.5 tnum text-[10px] bg-red rounded-full px-1.5 py-0.5">{data.queue.length}</span>
+              )}
+            </button>
+            <button
+              onClick={logout}
+              className="text-white/70 hover:text-white text-xs border border-white/25 rounded-lg px-3 py-1.5"
+            >
+              خروج
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {showTools ? (
+        <OpsTools data={data} busy={busy} post={post} />
+      ) : (
+        <>
+          {/* ── شريط معلومات المنشأة ── */}
+          <div className="bg-white border-b-2 border-saudi shadow-[0_1px_4px_rgba(15,41,66,.06)]">
+            <div className="max-w-[1560px] mx-auto px-6 py-3 flex items-center gap-6 flex-wrap">
+              {branch ? (
+                <>
+                  <span className="font-kufi font-extrabold text-[15.5px] text-ink">
+                    {branch.nameAr} — {normalizeDistrict(branch.districtAr)}، الرياض
+                  </span>
+                  <span className="text-xs text-ink-soft">
+                    رخصة بلدية{' '}
+                    <span className="font-mono font-bold text-ink tnum">{branch.licenseNo}</span>
+                  </span>
+                  <span className="text-xs text-ink-soft">
+                    رمز الفرع <span className="font-mono font-bold text-ink">{branch.code}</span>
+                  </span>
+                  <span className="flex items-center gap-[7px] text-xs text-ink-soft">
+                    مؤشر امتثال المنشأة:
+                    <span
+                      className="font-kufi font-extrabold text-sm tnum"
+                      style={{ color: branch.score >= 90 ? '#165D3A' : branch.score >= 70 ? '#E0982C' : '#CE4A3C' }}
+                    >
+                      {branch.score}%
+                    </span>
+                    <span className="w-14 h-[5px] rounded bg-[#F0E5CF] overflow-hidden inline-block">
+                      <span
+                        className="block h-full"
+                        style={{
+                          width: `${branch.score}%`,
+                          background: branch.score >= 90 ? '#165D3A' : branch.score >= 70 ? '#E0982C' : '#CE4A3C',
+                        }}
+                      />
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-bold mr-auto" style={{ color: deviceOnline ? '#165D3A' : '#CE4A3C' }}>
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        background: deviceOnline ? '#1B7A4A' : '#CE4A3C',
+                        animation: 'om-blink 1.6s infinite',
+                      }}
+                    />
+                    حالة الاتصال: {deviceOnline ? 'متصلة' : 'منقطعة'}
+                    {device?.lastSeenAt && !deviceOnline && (
+                      <span className="font-normal text-ink-faint"> · آخر نبض {formatDateTime(device.lastSeenAt)}</span>
+                    )}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-ink-faint">لا توجد منشأة مسجّلة</span>
+              )}
+            </div>
+          </div>
+
+          <main
+            className="max-w-[1560px] mx-auto w-full box-border px-6 py-[18px] grid gap-[18px] flex-1 items-start"
+            style={{ gridTemplateColumns: '352px minmax(0,1fr)' }}
+          >
+            {/* ── العمود الجانبي ── */}
+            <aside className="flex flex-col gap-3.5">
+              {/* المخالفة المرصودة الآن */}
+              {current && item ? (
+                <div className="bg-white border-[1.5px] border-red rounded-xl overflow-hidden shadow-[0_2px_10px_rgba(206,74,60,.12)]">
+                  <div className="bg-[#FBEAE7] px-3.5 py-2.5 flex items-center gap-2 border-b border-[#F0D9D5]">
+                    <span
+                      className="w-2 h-2 rounded-full bg-red"
+                      style={{ animation: 'om-blink 1.2s infinite' }}
+                    />
+                    <h2 className="m-0 font-kufi font-bold text-[13px] text-red">المخالفة المرصودة الآن</h2>
+                    {data.queue.length > 1 && (
+                      <span className="mr-auto text-[10.5px] font-bold text-red tnum">
+                        +{data.queue.length - 1} في الطابور
+                      </span>
                     )}
                   </div>
-                  <div className="font-bold text-navy text-sm mb-1">
-                    {ITEM_MAP[e.itemCode]?.titleAr ?? e.itemCode}
-                  </div>
-                  <div className="text-navy/50 text-xs mb-2">
-                    {CAMERAS_AR[e.cameraKey] ?? e.cameraKey}
-                    {e.zonesHit.length > 0 && <> · {e.zonesHit.map((z) => ZONES_AR[z] ?? z).join('، ')}</>}
-                    {' · '}{formatDateTime(e.occurredAt)}
-                  </div>
-                  {e.noteAr && <div className="text-navy/70 text-xs mb-2">{e.noteAr}</div>}
-                  <ConfidenceBar value={e.confidence} />
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      disabled={busy !== null}
-                      onClick={() => post('/api/ops/review', { eventId: e.id, action: 'approve' }, 'اعتُمدت الرصدة وفُتحت حالة')}
-                      className="btn btn-primary text-sm py-2 disabled:opacity-50"
-                    >
-                      اعتماد → حالة
-                    </button>
-                    <button
-                      disabled={busy !== null}
-                      onClick={() => post('/api/ops/review', { eventId: e.id, action: 'reject' }, 'استُبعدت (إنذار كاذب)')}
-                      className="btn btn-ghost text-sm py-2 disabled:opacity-50"
-                    >
-                      استبعاد (خاطئ)
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── المعايرة ── */}
-      {tab === 'calibration' && (
-        <div className="space-y-4">
-          <div className={`card p-4 ${cal.gatePassed ? 'border-green/40 bg-green/5' : 'border-amber/40 bg-amber/5'}`}>
-            <div className="font-kufi font-bold text-navy mb-1">
-              بوابة الأسبوع الثاني: دقة ≥ {Math.round(cal.gateMinPrecision * 100)}% على {cal.gateMinEvents}+ حدث مصنَّف
-            </div>
-            <div className="text-sm text-navy/70 tnum">
-              الحالي: {cal.totalLabeled} حدث مصنَّف · دقة{' '}
-              {cal.precision === null ? '—' : `${Math.round(cal.precision * 100)}%`} · إنذار كاذب{' '}
-              {cal.fpRate === null ? '—' : `${Math.round(cal.fpRate * 100)}%`}
-              {' — '}
-              <b className={cal.gatePassed ? 'text-green' : 'text-amber'}>
-                {cal.gatePassed ? 'البوابة مجتازة — يمكن إيقاف الوضع الصامت' : 'لا إطلاق قبل اجتياز البوابة'}
-              </b>
-            </div>
-          </div>
-
-          <div className="card p-4">
-            <h3 className="font-kufi font-bold text-navy mb-3">الدقة اليومية ومعدل الإنذار الكاذب</h3>
-            <CalibrationChart daily={cal.daily} />
-          </div>
-
-          <div className="card p-4">
-            <h3 className="font-kufi font-bold text-navy mb-3">حسب البند</h3>
-            <div className="space-y-2">
-              {cal.perItem.map((it) => (
-                <div key={it.itemCode} className="flex items-center gap-3 text-sm">
-                  <span className="chip bg-navy/10 text-navy border-navy/15 tnum w-24 justify-center shrink-0">
-                    {it.itemCode}
-                  </span>
-                  <span className="flex-1 text-navy/70 truncate text-xs">
-                    {ITEM_MAP[it.itemCode]?.titleAr}
-                  </span>
-                  <span className="tnum text-xs text-navy/50 shrink-0">{it.labeled} مصنَّف</span>
-                  <span className={`tnum font-bold shrink-0 ${it.precision !== null && it.precision >= 0.9 ? 'text-green' : it.precision === null ? 'text-navy/30' : 'text-amber'}`}>
-                    {it.precision === null ? '—' : `${Math.round(it.precision * 100)}%`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="card p-4">
-            <h3 className="font-kufi font-bold text-navy mb-1">أحداث تحتاج تصنيفًا (صحيح/خاطئ)</h3>
-            <p className="text-navy/40 text-xs mb-3">
-              رصدات المراجعة تُصنَّف تلقائيًا عند الاعتماد/الاستبعاد؛ هنا الأحداث الآلية وغيرها.
-            </p>
-            {data.unlabeled.length === 0 && (
-              <div className="text-navy/40 text-sm py-4 text-center">كل الأحداث مصنَّفة ✓</div>
-            )}
-            <div className="space-y-2">
-              {data.unlabeled.map((e) => (
-                <div key={e.id} className="flex items-center gap-2 text-sm border border-navy/10 rounded-lg p-2.5">
-                  <span className="chip bg-navy/10 text-navy border-navy/15 tnum shrink-0">{e.itemCode}</span>
-                  <span className="text-navy/50 text-xs flex-1 truncate">
-                    {CAMERAS_AR[e.cameraKey] ?? e.cameraKey} · {formatDateTime(e.occurredAt)} · ثقة{' '}
-                    <span className="tnum">{Math.round(e.confidence * 100)}%</span>
-                  </span>
-                  <button
-                    disabled={busy !== null}
-                    onClick={() => post('/api/ops/label', { eventId: e.id, label: 'correct' }, 'صُنّف: صحيح')}
-                    className="chip bg-green/10 text-green border-green/30 hover:bg-green/20"
-                  >
-                    صحيح
-                  </button>
-                  <button
-                    disabled={busy !== null}
-                    onClick={() => post('/api/ops/label', { eventId: e.id, label: 'incorrect' }, 'صُنّف: خاطئ')}
-                    className="chip bg-red/10 text-red border-red/30 hover:bg-red/20"
-                  >
-                    خاطئ
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── صحة الأجهزة ── */}
-      {tab === 'health' && (
-        <div className="space-y-3">
-          {data.devices.map((d) => (
-            <div key={d.id} className={`card p-4 ${!d.online ? 'border-red/40' : ''}`}>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="font-kufi font-bold text-navy">{d.name}</div>
-                  <div className="text-navy/50 text-xs">
-                    {d.branchNameAr} · إصدار {d.version ?? '—'} · آخر نبض:{' '}
-                    {d.lastSeenAt ? formatDateTime(d.lastSeenAt) : 'لم يتصل بعد'}
-                  </div>
-                </div>
-                <span className={`chip ${d.online ? 'bg-green/15 text-green border-green/30' : 'bg-red/15 text-red border-red/30'}`}>
-                  {d.online ? 'متصل' : 'منقطع'}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {d.cameras.map((c) => (
-                  <div key={c.key} className="rounded-lg border border-navy/10 bg-mist/50 p-3 flex items-center justify-between">
-                    <div>
-                      <div className="text-navy text-sm font-bold">{c.nameAr}</div>
-                      <div className="text-navy/40 text-[11px] tnum">
-                        {c.fps ? `${c.fps.toFixed(1)} fps` : '—'}
+                  <div className="px-3.5 py-3 flex flex-col gap-2.5">
+                    <div className="flex gap-3 items-start">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/events/${current.id}/frame`}
+                        alt="إطار الدليل"
+                        className="w-[92px] h-[58px] object-cover rounded-md border border-[#33424F] bg-[#1C2733] shrink-0"
+                      />
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span className="font-mono text-[11px] font-bold text-ink bg-[#F0F5F2] rounded px-[7px] py-0.5 self-start">
+                          {current.itemCode}
+                        </span>
+                        <span className="text-[12.5px] font-bold text-ink leading-snug">{item.titleAr}</span>
+                        <span className="text-[11px] text-ink-soft">
+                          الثقة: <b className="text-ink tnum">{Math.round(current.confidence * 100)}%</b>
+                        </span>
                       </div>
                     </div>
-                    <span className={`w-2.5 h-2.5 rounded-full ${c.online ? 'bg-green' : 'bg-red animate-blink'}`} />
+
+                    <div className="flex items-center gap-2 text-[11.5px] font-bold text-saudi bg-[#EFF6F1] border border-[#D9E8DE] rounded-lg px-3 py-[7px]">
+                      {current.source === 'semantic' ? (
+                        <>
+                          تحقق دلالي: مؤكد ✓{' '}
+                          <span className="font-normal text-[#4E7A61]">(تحليل ذكاء اصطناعي)</span>
+                        </>
+                      ) : (
+                        <>
+                          كشف حي ✓ <span className="font-normal text-[#4E7A61]">({CAMERAS_AR[current.cameraKey] ?? current.cameraKey})</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between bg-[#FBF3E3] border border-[#EFE0BE] rounded-lg px-3 py-2">
+                      <span className="text-[11.5px] font-bold text-[#8A6A1F]">وقت الرصد</span>
+                      <span className="font-mono text-[12px] font-bold text-[#A96F14] tnum">
+                        {formatDateTime(current.occurredAt)}
+                      </span>
+                    </div>
+
+                    {current.silent && (
+                      <div className="text-[11px] text-[#8A6A1F] bg-[#FBF3E3] border border-[#EFE0BE] rounded-lg px-3 py-2 leading-relaxed">
+                        رُصدت أثناء الوضع الصامت — لن يُبلَّغ المشغّل أو الكفيل حتى إيقافه.
+                      </div>
+                    )}
                   </div>
-                ))}
+                </div>
+              ) : (
+                <div className="bg-white border border-line rounded-xl px-4 py-8 text-center shadow-[0_1px_4px_rgba(15,41,66,.06)]">
+                  <div className="text-sm font-bold text-saudi">لا رصدات بانتظار التفتيش ✓</div>
+                  <div className="text-[11px] text-ink-faint mt-1 leading-relaxed">
+                    الطابور فارغ — ستظهر الرصدة هنا فور ورودها من أجهزة الحافة.
+                  </div>
+                </div>
+              )}
+
+              {/* سجل مخالفات المنشأة */}
+              <div className="bg-white border border-line rounded-xl overflow-hidden shadow-[0_1px_4px_rgba(15,41,66,.06)]">
+                <div className="px-3.5 py-2.5 border-b border-[#EAF0EC] bg-[#F7FAF8]">
+                  <h2 className="m-0 font-kufi font-bold text-[13px] text-ink">
+                    سجل مخالفات المنشأة{' '}
+                    <span className="font-normal text-ink-faint text-[11px]">(آخر 90 يومًا)</span>
+                  </h2>
+                </div>
+                <div className="flex flex-col">
+                  {branchCases.length === 0 && (
+                    <div className="px-3.5 py-6 text-center text-[11.5px] text-ink-faint">
+                      لا مخالفات مسجّلة خلال 90 يومًا ✓
+                    </div>
+                  )}
+                  {branchCases.slice(0, 8).map((c) => {
+                    const badge = CASE_BADGE[c.status] ?? CASE_BADGE.new;
+                    return (
+                      <Link
+                        key={c.id}
+                        href={`/case/${c.id}`}
+                        className="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-[#EFF4F0] last:border-0 hover:bg-[#F7FAF8]"
+                      >
+                        <span className="font-mono text-[10px] font-bold text-ink-muted bg-[#F0F5F2] rounded px-1.5 py-0.5 shrink-0">
+                          {c.itemCode}
+                        </span>
+                        <div className="flex flex-col gap-px min-w-0 flex-1">
+                          <span className="text-[11.5px] font-semibold text-ink truncate">
+                            {ITEM_MAP[c.itemCode]?.titleAr ?? c.itemCode}
+                          </span>
+                          <span className="text-[10px] text-ink-faint tnum">{formatDateTime(c.detectedAt)}</span>
+                        </div>
+                        <span
+                          className="text-[10.5px] font-bold rounded-full px-2.5 py-[3px] shrink-0"
+                          style={{ color: badge.color, background: badge.bg }}
+                        >
+                          {badge.label}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* ── الإعدادات ── */}
-      {tab === 'config' && (
-        <div className="space-y-4">
-          {branch && (
-            <div className="card p-4">
-              <h3 className="font-kufi font-bold text-navy mb-2">SILENT_MODE — {branch.nameAr}</h3>
-              <p className="text-navy/60 text-xs mb-3 leading-relaxed">
-                عند التفعيل تذهب كل الرصدات إلى طابور المراجعة فقط — صفر إشعارات للمشغّل والكفيل
-                (بوابة الأسبوع الثاني الإلزامية). الإيقاف يتطلب اجتياز بوابة المعايرة.
-              </p>
-              <button
-                disabled={busy !== null}
-                onClick={() =>
-                  post(
-                    '/api/ops/silent',
-                    { branchId: branch.id, silentMode: !branch.silentMode },
-                    branch.silentMode ? 'أُوقف الوضع الصامت — الإشعارات حية' : 'فُعّل الوضع الصامت',
-                  )
-                }
-                className={`btn ${branch.silentMode ? 'btn-primary' : 'btn-red'} text-sm`}
-              >
-                {branch.silentMode ? 'إيقاف الوضع الصامت (go-live)' : 'تفعيل الوضع الصامت'}
-              </button>
-            </div>
-          )}
+              {/* بنود الرقابة النشطة */}
+              <div className="bg-white border border-line rounded-xl overflow-hidden shadow-[0_1px_4px_rgba(15,41,66,.06)]">
+                <div className="px-3.5 py-2.5 border-b border-[#EAF0EC] bg-[#F7FAF8]">
+                  <h2 className="m-0 font-kufi font-bold text-[13px] text-ink">
+                    بنود الرقابة النشطة على هذه المنشأة
+                  </h2>
+                </div>
+                <div className="flex flex-col">
+                  {data.rules
+                    .filter((r) => r.enabled)
+                    .map((r) => {
+                      const violating = ruleStatus.has(r.itemCode);
+                      return (
+                        <div
+                          key={r.itemCode}
+                          className="flex items-center justify-between gap-2 px-3.5 py-2 border-b border-[#EFF4F0] last:border-0"
+                        >
+                          <span className="flex items-center gap-2.5 text-[11.5px] font-semibold text-ink min-w-0">
+                            <span className="font-mono text-[9.5px] font-bold text-ink-muted bg-[#F0F5F2] rounded px-1.5 py-0.5 shrink-0">
+                              {r.itemCode}
+                            </span>
+                            <span className="truncate">{ITEM_MAP[r.itemCode]?.titleAr ?? r.itemCode}</span>
+                          </span>
+                          <span
+                            className="text-[11px] font-bold shrink-0"
+                            style={{ color: violating ? '#A96F14' : '#165D3A' }}
+                          >
+                            {violating ? 'مخالفة ⚠' : 'سليم ✓'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </aside>
 
-          <div className="card p-4">
-            <h3 className="font-kufi font-bold text-navy mb-3">عتبات وجداول بنود §5 (تُدفع للحافة فورًا)</h3>
-            <div className="space-y-3">
-              {data.rules.map((r) => (
-                <RuleEditor key={r.itemCode} rule={r} busy={busy !== null} onSave={(fields) =>
-                  post('/api/ops/config', { itemCode: r.itemCode, ...fields }, 'حُدّثت إعدادات البند')
-                } />
+            {/* ── شبكة البث الحي ── */}
+            <section
+              className="grid gap-3.5 min-w-0"
+              style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: 'auto auto' }}
+            >
+              {cameras.length === 0 && (
+                <div
+                  style={{ gridColumn: '1 / -1' }}
+                  className="bg-white border border-line rounded-xl py-16 text-center text-ink-faint text-sm"
+                >
+                  لا كاميرات مسجّلة على صندوق الحافة بعد
+                </div>
+              )}
+              {cameras.map((c, i) => (
+                <div key={c.key} style={i === 0 ? { gridColumn: '1 / -1' } : undefined}>
+                  <LiveStream
+                    cameraKey={c.key}
+                    title={c.nameAr}
+                    badge={i === 0 ? 'الكاميرا الرئيسة' : undefined}
+                    height={i === 0 ? 400 : 216}
+                    offline={!c.online}
+                    deviceCode={
+                      branch ? `${branch.code}-${CAMERA_CODE[c.key] ?? c.key}` : CAMERA_CODE[c.key] ?? c.key
+                    }
+                    primary={i === 0}
+                  />
+                </div>
               ))}
+            </section>
+          </main>
+
+          {/* ── منطقة الإجراء الرسمي ── */}
+          <footer
+            className="border-t-2 border-gold mt-auto"
+            style={{ background: 'linear-gradient(180deg,#122A40,#0F2942)' }}
+          >
+            <div className="max-w-[1560px] mx-auto px-6 py-4 flex items-center justify-between gap-[18px] flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  disabled={!current || busy !== null}
+                  onClick={() => current && setModalEventId(current.id)}
+                  className="font-kufi text-[14.5px] font-bold rounded-[10px] px-[26px] py-[13px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    color: '#2B2008',
+                    background: 'linear-gradient(180deg,#D9B565,#B8934A)',
+                    border: '1px solid #8F6E2E',
+                    boxShadow: '0 3px 12px rgba(184,147,74,.4)',
+                  }}
+                >
+                  ⚖ إصدار محضر مخالفة رقمي
+                </button>
+
+                <button
+                  disabled={!current || busy !== null}
+                  onClick={() => current && reject(current.id)}
+                  className="text-[13px] font-bold text-[#0F2942] bg-white border border-white rounded-[10px] px-5 py-3 cursor-pointer hover:bg-[#E8EEF5] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  رفض الرصدة — غير صحيحة
+                </button>
+
+                <button
+                  onClick={() => setShowTools(true)}
+                  className="text-[13px] font-semibold text-[#C7D5E2] bg-transparent border border-white/35 rounded-[10px] px-5 py-3 cursor-pointer hover:bg-white/10"
+                >
+                  أدوات غرفة العمليات
+                </button>
+              </div>
+              <span className="text-[11.5px] text-[#8FA3B5] max-w-[340px] leading-relaxed">
+                كل إجراء يُوقَّع رقميًا <span className="font-mono text-[#C7D5E2]">Ed25519</span> ويُسجَّل في سلسلة
+                الأدلة الوطنية
+              </span>
             </div>
-          </div>
-        </div>
+          </footer>
+        </>
       )}
 
-      {/* ── سجل التدقيق ── */}
-      {tab === 'audit' && (
-        <div className="card p-4">
-          <h3 className="font-kufi font-bold text-navy mb-3">سجل التدقيق (أحدث 50)</h3>
-          <div className="space-y-1.5">
-            {data.audit.map((a) => (
-              <div key={a.id} className="flex items-center gap-2 text-xs border-b border-navy/5 py-2">
-                <span className="chip bg-navy/5 text-navy/70 border-navy/10">{ACTION_AR[a.action] ?? a.action}</span>
-                <span className="text-navy/70 flex-1 truncate">
-                  {a.actorName} · {a.entity}
-                  {a.entityId && <span className="tnum" dir="ltr"> #{a.entityId.slice(0, 8)}</span>}
-                </span>
-                <span className="text-navy/40 tnum shrink-0">{formatDateTime(a.at)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* ── محضر مخالفة رقمي (مسودة) ── */}
+      {modalEvent && (
+        <MomModal
+          event={modalEvent}
+          branch={branch}
+          inspector={nameAr}
+          busy={busy !== null}
+          onDismiss={() => setModalEventId(null)}
+          onApprove={() => approve(modalEvent.id)}
+        />
       )}
 
       {toast && (
-        <div className="toast-wrap">
-          <div className="bg-navy text-white rounded-xl px-4 py-3 text-sm shadow-panel animate-slide-in">
-            {toast}
-          </div>
+        <div className="fixed bottom-6 left-6 z-[2000] bg-ink text-white text-[12.5px] font-semibold rounded-[10px] px-[18px] py-3 shadow-[0_8px_26px_rgba(15,41,66,.35)] animate-om-in">
+          {toast}
         </div>
-      )}
-    </AppShell>
-  );
-}
-
-function RuleEditor({
-  rule,
-  busy,
-  onSave,
-}: {
-  rule: {
-    itemCode: string; enabled: boolean; mode: string; autoThreshold: number;
-    reviewThreshold: number; confirmWindowSec: number; cooldownSec: number;
-    scheduleMinutes: number | null; consecutiveChecks: number;
-  };
-  busy: boolean;
-  onSave: (fields: Record<string, unknown>) => void;
-}) {
-  const [auto, setAuto] = useState(rule.autoThreshold);
-  const [review, setReview] = useState(rule.reviewThreshold);
-  const [confirm, setConfirm] = useState(rule.confirmWindowSec);
-  const [cooldown, setCooldown] = useState(rule.cooldownSec);
-  const [schedule, setSchedule] = useState(rule.scheduleMinutes ?? 120);
-  const [consecutive, setConsecutive] = useState(rule.consecutiveChecks ?? 1);
-
-  const dirty =
-    auto !== rule.autoThreshold ||
-    review !== rule.reviewThreshold ||
-    confirm !== rule.confirmWindowSec ||
-    cooldown !== rule.cooldownSec ||
-    (rule.mode === 'scheduled' &&
-      (schedule !== rule.scheduleMinutes || consecutive !== rule.consecutiveChecks));
-
-  return (
-    <div className="rounded-lg border border-navy/10 p-3">
-      <div className="flex flex-wrap items-center gap-2 mb-2">
-        <span className="chip bg-navy/10 text-navy border-navy/15 tnum">بند {rule.itemCode}</span>
-        <span className={`chip ${rule.mode === 'live' ? 'bg-green/10 text-green border-green/30' : 'bg-gold/10 text-gold border-gold/30'}`}>
-          {rule.mode === 'live' ? 'حي' : 'مجدول'}
-        </span>
-        <span className="text-navy/60 text-xs flex-1 truncate">{ITEM_MAP[rule.itemCode]?.titleAr}</span>
-        <label className="flex items-center gap-1.5 text-xs text-navy/70">
-          <input type="checkbox" checked={rule.enabled}
-            onChange={(e) => onSave({ enabled: e.target.checked })} disabled={busy} />
-          مفعّل
-        </label>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-        <NumField label="عتبة الإصدار الآلي" value={auto} step={0.01} min={0.5} max={1} onChange={setAuto} />
-        <NumField label="عتبة المراجعة" value={review} step={0.01} min={0.3} max={1} onChange={setReview} />
-        {rule.mode === 'live' ? (
-          <NumField label="نافذة التأكيد (ث)" value={confirm} step={5} min={0} max={3600} onChange={setConfirm} />
-        ) : (
-          <NumField label="الجدولة (دقيقة)" value={schedule} step={15} min={15} max={1440} onChange={setSchedule} />
-        )}
-        {rule.mode === 'scheduled' ? (
-          <NumField label="فحوصات متتالية للتأكيد" value={consecutive} step={1} min={1} max={5} onChange={setConsecutive} />
-        ) : (
-          <NumField label="التهدئة (ث)" value={cooldown} step={60} min={0} max={86400} onChange={setCooldown} />
-        )}
-      </div>
-      {dirty && (
-        <button
-          disabled={busy}
-          onClick={() =>
-            onSave({
-              autoThreshold: auto,
-              reviewThreshold: review,
-              confirmWindowSec: confirm,
-              cooldownSec: cooldown,
-              ...(rule.mode === 'scheduled'
-                ? { scheduleMinutes: schedule, consecutiveChecks: consecutive }
-                : {}),
-            })
-          }
-          className="btn btn-navy text-xs py-1.5 px-4 mt-2"
-        >
-          حفظ
-        </button>
       )}
     </div>
   );
 }
 
-function NumField({
-  label, value, onChange, step, min, max,
+// ── نموذج المحضر MOM-2026 ──
+function MomModal({
+  event,
+  branch,
+  inspector,
+  busy,
+  onDismiss,
+  onApprove,
 }: {
-  label: string; value: number; onChange: (v: number) => void; step: number; min: number; max: number;
+  event: OpsData['queue'][number];
+  branch?: OpsData['branches'][number];
+  inspector: string;
+  busy: boolean;
+  onDismiss: () => void;
+  onApprove: () => void;
 }) {
+  const item = ITEM_MAP[event.itemCode];
+  // رقم المحضر النهائي يصدر من الخادم عند الاعتماد — هذه مسودة
+  const draftRef = `MOM-${new Date(event.occurredAt).getFullYear()}-${event.id.slice(-5).toUpperCase()}`;
+
   return (
-    <label className="block">
-      <span className="text-navy/50 text-[10px]">{label}</span>
-      <input
-        type="number" dir="ltr" value={value} step={step} min={min} max={max}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-0.5 w-full rounded-lg border border-navy/15 px-2 py-1.5 tnum text-navy"
-      />
-    </label>
+    <div
+      className="fixed inset-0 z-[1000] grid place-items-center p-6 box-border"
+      style={{ background: 'rgba(10,22,34,.62)', backdropFilter: 'blur(3px)' }}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="om-scroll bg-white rounded-2xl w-[640px] max-w-full max-h-[92vh] overflow-y-auto shadow-[0_24px_70px_rgba(0,0,0,.4)] border-t-[5px] border-gold">
+        <div className="px-6 pt-[18px] pb-3.5 border-b-2 border-saudi flex items-center justify-between gap-3.5">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-[46px] h-[46px] rounded-full border-2 border-gold grid place-items-center shrink-0"
+              style={{ background: 'radial-gradient(circle at 35% 30%,#1E7248,#0B3320)' }}
+            >
+              <span className="font-kufi font-extrabold text-[10.5px] text-sand">رصد</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="font-kufi font-extrabold text-base text-ink">محضر مخالفة رقمي — مسودة</span>
+              <span className="text-[11px] text-ink-soft">
+                المركز الوطني لرصد الامتثال · أمانة منطقة الرياض
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-[3px]">
+            <span className="font-mono text-[13px] font-bold text-ink">{draftRef}</span>
+            <span className="text-[10.5px] text-ink-faint tnum">{formatDateTime(event.occurredAt)}</span>
+            <button
+              onClick={onDismiss}
+              className="bg-transparent border-0 text-ink-faint text-xs cursor-pointer hover:text-red py-0.5"
+            >
+              إغلاق ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 flex flex-col gap-3.5">
+          <div className="grid grid-cols-2 gap-x-5 gap-y-2 bg-[#F7FAF8] border border-line rounded-[10px] px-4 py-3">
+            <span className="text-[11.5px] text-ink-soft">
+              المنشأة: <b className="text-ink">{branch?.nameAr ?? '—'}</b>
+            </span>
+            <span className="text-[11.5px] text-ink-soft">
+              الرخصة البلدية: <b className="font-mono text-ink">{branch?.licenseNo ?? '—'}</b>
+            </span>
+            <span className="text-[11.5px] text-ink-soft">
+              رمز الفرع: <b className="font-mono text-ink">{branch?.code ?? '—'}</b>
+            </span>
+            <span className="text-[11.5px] text-ink-soft">
+              المفتش: <b className="text-ink">{inspector}</b>
+            </span>
+          </div>
+
+          <div className="border border-[#F0D9D5] bg-[#FDF7F6] rounded-[10px] px-4 py-3 flex flex-col gap-1.5">
+            <span className="flex items-center gap-2.5">
+              <span className="font-mono text-[11px] font-bold text-white bg-red rounded px-2 py-0.5">
+                {event.itemCode}
+              </span>
+              <b className="text-[13px] text-ink">{item?.titleAr ?? event.itemCode}</b>
+            </span>
+            <span className="text-[11.5px] text-ink-soft leading-loose">
+              البند حسب لائحة الاشتراطات البلدية لنشاط المغاسل · الغرامة المقررة:{' '}
+              <b className="text-ink">{item?.fineText ?? '—'}</b>
+            </span>
+          </div>
+
+          <div className="flex gap-3.5 items-stretch">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/events/${event.id}/frame`}
+              alt="صورة الدليل الرقمي"
+              className="w-[150px] h-[92px] object-cover rounded-lg border border-[#33424F] bg-[#1C2733] shrink-0"
+            />
+            <div className="flex-1 flex flex-col gap-1.5 justify-center">
+              <span className="text-[11.5px] font-bold text-ink">صورة الدليل الرقمي المرفقة</span>
+              <span className="flex items-center gap-[7px] text-[10.5px] text-[#6B5320] bg-[#FCF8EF] border border-[#EFE0BE] rounded-md px-2.5 py-1.5 leading-relaxed">
+                <span
+                  className="w-4 h-4 rounded-full grid place-items-center text-[#FFF8E8] text-[9px] shrink-0"
+                  style={{ background: 'radial-gradient(circle at 35% 30%,#CBA95E,#8F6E2E)' }}
+                >
+                  ✓
+                </span>
+                تُوقَّع Ed25519 وتُضاف لسلسلة الأدلة عند الاعتماد
+              </span>
+              <span className="text-[10.5px] text-ink-faint">
+                الثقة الآلية <span className="tnum">{Math.round(event.confidence * 100)}%</span>
+                {event.source === 'semantic' ? ' · تحقق دلالي مؤكد ✓' : ' · كشف حي'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3.5 bg-[#FBF3E3] border border-[#EFE0BE] rounded-[10px] px-4 py-3">
+            <div className="flex flex-col gap-[3px]">
+              <span className="text-[11.5px] font-bold text-[#8A6A1F]">الغرامة المقررة</span>
+              <span className="font-kufi font-extrabold text-[22px] text-ink tnum">
+                {(item?.fineAmount ?? 0).toLocaleString('en-US')}{' '}
+                <span className="text-[13px] font-semibold text-ink-soft">ريال</span>
+              </span>
+            </div>
+            <span className="text-[11px] text-[#8A6A1F] max-w-[250px] leading-relaxed text-left">
+              يفتح الاعتماد حالةً ويبدأ مهلة تصحيح نظامية مدتها 48 ساعة تلقائيًا
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 border-t border-dashed border-[#D5E0D8] pt-3.5">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] text-ink-faint">توقيع المفتش الرقمي</span>
+              <span className="font-kufi font-bold text-[15px] text-saudi">{inspector}</span>
+              <span className="font-mono text-[10px] text-ink-faint">
+                SIG-Ed25519 · يُصدر عند الاعتماد · بانتظار الاعتماد
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-3.5 border-t border-[#EAF0EC] bg-[#F7FAF8] flex flex-col gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              disabled={busy}
+              onClick={onApprove}
+              className="flex-1 min-w-[180px] font-kufi text-sm font-bold rounded-[9px] px-5 py-3 cursor-pointer disabled:opacity-50"
+              style={{
+                color: '#2B2008',
+                background: 'linear-gradient(180deg,#D9B565,#B8934A)',
+                border: '1px solid #8F6E2E',
+                boxShadow: '0 2px 10px rgba(184,147,74,.35)',
+              }}
+            >
+              {busy ? 'جارٍ الاعتماد…' : 'اعتماد وإصدار'}
+            </button>
+            <button
+              onClick={onDismiss}
+              disabled={busy}
+              className="text-[13px] font-bold text-ink bg-white border border-[#D5E0D8] rounded-[9px] px-5 py-3 cursor-pointer hover:bg-[#EEF3F0] disabled:opacity-50"
+            >
+              إلغاء
+            </button>
+          </div>
+          <span className="text-[11px] text-ink-faint text-center leading-relaxed">
+            {branch?.silentMode
+              ? 'الوضع الصامت مفعّل — تُفتح الحالة وتُسجَّل دون إشعار المشغّل أو الكفيل.'
+              : 'سيُبلَّغ المشغّل والكفيل فور الاعتماد وتبدأ مهلة التصحيح.'}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

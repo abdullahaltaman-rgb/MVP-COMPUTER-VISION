@@ -42,13 +42,13 @@ export default function AppShell({
       <header className="bg-navy text-white sticky top-0 z-40 shadow-panel">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center font-kufi font-bold text-gold shrink-0">
-              أب
+            <div className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center font-kufi font-bold text-xs text-gold shrink-0">
+              رصد
             </div>
             <div className="min-w-0">
               <h1 className="font-kufi font-bold text-sm sm:text-base truncate">{title}</h1>
               <div className="text-white/60 text-[11px] truncate">
-                أبيض فيجن v1.0 · {ROLE_AR[role] ?? role} · {nameAr}
+                منصة رصد الامتثال البلدي · {ROLE_AR[role] ?? role} · {nameAr}
               </div>
             </div>
           </div>

@@ -11,10 +11,21 @@ export async function GET() {
   const branchId = auth.user.branchId;
   if (!branchId) return NextResponse.json({ error: 'لا فرع مرتبط' }, { status: 400 });
 
-  const [branch, cases, notifications] = await Promise.all([
+  const OFFLINE_AFTER_MS = 5 * 60 * 1000;
+  const now = Date.now();
+
+  const [branch, cases, notifications, devices] = await Promise.all([
     prisma.branch.findUnique({
       where: { id: branchId },
-      select: { id: true, nameAr: true, districtAr: true, licenseNo: true, silentMode: true },
+      // score: يغذّي حلقة مؤشر الامتثال في لوحة المشغّل (إضافة غير كاسرة)
+      select: {
+        id: true,
+        nameAr: true,
+        districtAr: true,
+        licenseNo: true,
+        silentMode: true,
+        score: true,
+      },
     }),
     prisma.case.findMany({
       where: { branchId },
@@ -33,7 +44,21 @@ export async function GET() {
       orderBy: { at: 'desc' },
       take: 30,
     }),
+    // كاميرات الفرع — تغذّي شبكة البث المباشر (إضافة غير كاسرة)
+    prisma.device.findMany({
+      where: { branchId },
+      include: { cameras: { orderBy: { key: 'asc' } } },
+    }),
   ]);
 
-  return NextResponse.json({ branch, cases, notifications });
+  const cameras = devices.flatMap((d) =>
+    d.cameras.map((c) => ({
+      key: c.key,
+      nameAr: c.nameAr,
+      online:
+        c.online && Boolean(d.lastSeenAt && now - d.lastSeenAt.getTime() < OFFLINE_AFTER_MS),
+    })),
+  );
+
+  return NextResponse.json({ branch, cases, notifications, cameras });
 }

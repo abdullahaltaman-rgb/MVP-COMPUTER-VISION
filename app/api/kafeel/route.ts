@@ -12,11 +12,22 @@ export async function GET() {
   const branchId = auth.user.branchId;
   if (!branchId) return NextResponse.json({ error: 'لا فرع مرتبط' }, { status: 400 });
 
-  const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
-  const [branch, cases, reports, escalations, monthCases] = await Promise.all([
+  const OFFLINE_AFTER_MS = 5 * 60 * 1000;
+  const now = Date.now();
+  const monthAgo = new Date(now - 30 * 24 * 3600 * 1000);
+
+  const [branch, cases, reports, escalations, monthCases, devices] = await Promise.all([
     prisma.branch.findUnique({
       where: { id: branchId },
-      select: { id: true, nameAr: true, districtAr: true, licenseNo: true },
+      // code/score: يغذّيان بطاقة الفرع وحلقة المؤشر في محفظة الكفيل (إضافة غير كاسرة)
+      select: {
+        id: true,
+        code: true,
+        nameAr: true,
+        districtAr: true,
+        licenseNo: true,
+        score: true,
+      },
     }),
     prisma.case.findMany({
       where: { branchId },
@@ -47,7 +58,21 @@ export async function GET() {
       take: 20,
     }),
     prisma.case.findMany({ where: { branchId, detectedAt: { gte: monthAgo } } }),
+    // كاميرات الفرع — تغذّي «عرض التفاصيل والبث» (إضافة غير كاسرة)
+    prisma.device.findMany({
+      where: { branchId },
+      include: { cameras: { orderBy: { key: 'asc' } } },
+    }),
   ]);
+
+  const cameras = devices.flatMap((d) =>
+    d.cameras.map((c) => ({
+      key: c.key,
+      nameAr: c.nameAr,
+      online:
+        c.online && Boolean(d.lastSeenAt && now - d.lastSeenAt.getTime() < OFFLINE_AFTER_MS),
+    })),
+  );
 
   const opened = monthCases.length;
   const corrected = monthCases.filter((c) => c.status === 'corrected').length;
@@ -64,5 +89,6 @@ export async function GET() {
       return { ...r, payload: undefined, stats: payload?.stats };
     }),
     escalations,
+    cameras,
   });
 }

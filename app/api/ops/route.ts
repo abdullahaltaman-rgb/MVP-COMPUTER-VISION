@@ -37,7 +37,16 @@ export async function GET() {
         include: { cameras: { orderBy: { key: 'asc' } }, branch: { select: { nameAr: true } } },
       }),
       prisma.branch.findMany({
-        select: { id: true, code: true, nameAr: true, silentMode: true },
+        // districtAr/licenseNo/score: يغذّيان شريط معلومات المنشأة في شاشة التفتيش (إضافة غير كاسرة)
+        select: {
+          id: true,
+          code: true,
+          nameAr: true,
+          silentMode: true,
+          districtAr: true,
+          licenseNo: true,
+          score: true,
+        },
       }),
       prisma.ruleConfig.findMany({ orderBy: { itemCode: 'asc' } }),
       prisma.auditLog.findMany({ orderBy: { at: 'desc' }, take: 50 }),
@@ -61,9 +70,29 @@ export async function GET() {
     },
   });
 
+  // ── سجل مخالفات المنشأة (آخر 90 يومًا) — يغذّي العمود الجانبي في شاشة التفتيش ──
+  const since = new Date(now - 90 * 24 * 3600 * 1000);
+  const cases = await prisma.case.findMany({
+    where: { detectedAt: { gte: since } },
+    orderBy: { detectedAt: 'desc' },
+    take: 50,
+    select: {
+      id: true,
+      refNo: true,
+      branchId: true,
+      itemCode: true,
+      status: true,
+      confidence: true,
+      potentialFine: true,
+      detectedAt: true,
+      graceDeadline: true,
+    },
+  });
+
   return NextResponse.json({
     queue,
     unlabeled,
+    cases,
     devices: devices.map((d) => ({
       id: d.id,
       name: d.name,

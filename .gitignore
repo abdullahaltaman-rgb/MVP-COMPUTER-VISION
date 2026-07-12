@@ -9,3 +9,6 @@ edge/bridge/__pycache__/
 **/__pycache__/
 *.pyc
 edge/data/
+.vercel
+.env*
+tsconfig.tsbuildinfo
